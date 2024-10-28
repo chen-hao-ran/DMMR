@@ -153,7 +153,7 @@ def get_smpl_params_vertices():
 
     # ITERATION
     for i in range(1200):
-        path = f'output/results/motion0_30iter/{i:05d}.pkl'
+        path = f'output/results/motion0/{i:05d}.pkl'
         with open(path, 'rb') as file:
             smpl_params = pickle.load(file)
         sp = smpl_params['person00']
@@ -179,5 +179,5 @@ if __name__ == '__main__':
     # get_keypoints()
     # get_cam()
     # keypoints_vis()
-    vertices_vis()
-    # get_smpl_params_vertices()
+    # vertices_vis()
+    get_smpl_params_vertices()

@@ -744,7 +744,7 @@ def add_camera_mesh(extrinsic, camerascale=1):
 
     P = np.zeros((3, 40))
     for i in range(3):
-        P[:,i * 8 + 0] = r[i][0] 
+        P[:,i * 8 + 0] = r[i][0]
         P[:,i * 8 + 1] = r[i][1]
         P[:,i * 8 + 2] = r[i][1] 
         P[:,i * 8 + 3] = r[i][2]
