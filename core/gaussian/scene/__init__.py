@@ -12,19 +12,16 @@
 import os
 import random
 import json
-from utils.system_utils import searchForMaxIteration
-from scene.dataset_readers import sceneLoadTypeCallbacks
-from scene.gaussian_model import GaussianModel
+from core.gaussian.scene.dataset_readers import readInfo
+from core.gaussian.scene.gaussian_model import GaussianModel
 from arguments import ModelParams
 from utils.camera_utils import cameraList_from_camInfos, camera_to_JSON
-import torch
-from utils.system_utils import mkdir_p
 
 class Scene:
 
     gaussians : GaussianModel
 
-    def __init__(self, args : ModelParams, gaussians : GaussianModel, load_iteration=None, shuffle=True, resolution_scales=[1.0]):
+    def __init__(self, args : ModelParams, gaussians : GaussianModel, models, pose_embeddings, shuffle=True, resolution_scales=[1.0]):
         """b
         :param path: Path to colmap scene main folder.
         """
@@ -32,36 +29,13 @@ class Scene:
         self.loaded_iter = None
         self.gaussians = gaussians
 
-        if load_iteration:
-            if load_iteration == -1:
-                self.loaded_iter = searchForMaxIteration(os.path.join(self.model_path, "point_cloud"))
-            else:
-                self.loaded_iter = load_iteration
-            print("Loading trained model at iteration {}".format(self.loaded_iter))
-
         self.train_cameras = {}
         self.test_cameras = {}
 
-        if os.path.exists(os.path.join(args.source_path, "sparse")):
-            scene_info = sceneLoadTypeCallbacks["Colmap"](args.source_path, args.images, args.eval)
-        elif os.path.exists(os.path.join(args.source_path, "transforms_train.json")):
-            print("Found transforms_train.json file, assuming Blender data set!")
-            scene_info = sceneLoadTypeCallbacks["Blender"](args.source_path, args.white_background, args.eval)
-        elif 'zju_mocap_refine' in args.source_path: #os.path.exists(os.path.join(args.source_path, "annots.npy")):
-            print("Found annots.json file, assuming ZJU_MoCap_refine data set!")
-            scene_info = sceneLoadTypeCallbacks["ZJU_MoCap_refine"](args.source_path, args.white_background, args.exp_name, args.eval)
-        elif 'monocap' in args.source_path:
-            print("assuming MonoCap data set!")
-            scene_info = sceneLoadTypeCallbacks["MonoCap"](args.source_path, args.white_background, args.exp_name, args.eval)
-        elif 'dna_rendering' in args.source_path:
-            print("assuming dna_rendering data set!")
-            scene_info = sceneLoadTypeCallbacks["dna_rendering"](args.source_path, args.white_background, args.exp_name, args.eval)
-        elif 'basketball28_Camera04' in args.source_path:
-            print("Found annots.json file, assuming basketball28_Camera04 data set!")
-            scene_info = sceneLoadTypeCallbacks["blasketball28_Camera04"](args.source_path, args.white_background, args.exp_name, args.eval)
-        else:
-            assert False, "Could not recognize scene type!"
+        # get scene_info
+        scene_info = readInfo(args.source_path, args.white_background, args.exp_name, args.eval, models, pose_embeddings)
 
+        # write cams
         if not self.loaded_iter:
             with open(scene_info.ply_path, 'rb') as src_file, open(os.path.join(self.model_path, "input.ply") , 'wb') as dest_file:
                 dest_file.write(src_file.read())
@@ -76,10 +50,12 @@ class Scene:
             with open(os.path.join(self.model_path, "cameras.json"), 'w') as file:
                 json.dump(json_cams, file)
 
+        # cam shuffle
         if shuffle:
             random.shuffle(scene_info.train_cameras)  # Multi-res consistent random shuffling
             random.shuffle(scene_info.test_cameras)  # Multi-res consistent random shuffling
 
+        # cameras_extent
         self.cameras_extent = scene_info.nerf_normalization["radius"]
 
         for resolution_scale in resolution_scales:
@@ -96,25 +72,9 @@ class Scene:
         else:
             self.gaussians.create_from_pcd(scene_info.point_cloud, self.cameras_extent)
 
-        if self.gaussians.motion_offset_flag:
-            model_path = os.path.join(self.model_path, "mlp_ckpt", "iteration_" + str(self.loaded_iter), "ckpt.pth")
-            if os.path.exists(model_path):
-                ckpt = torch.load(model_path, map_location='cuda:0')
-                self.gaussians.pose_decoder.load_state_dict(ckpt['pose_decoder'])
-                self.gaussians.lweight_offset_decoder.load_state_dict(ckpt['lweight_offset_decoder'])
-
     def save(self, iteration):
         point_cloud_path = os.path.join(self.model_path, "point_cloud/iteration_{}".format(iteration))
         self.gaussians.save_ply(os.path.join(point_cloud_path, "point_cloud.ply"))
-
-        if self.gaussians.motion_offset_flag:
-            model_path = os.path.join(self.model_path, "mlp_ckpt", "iteration_" + str(iteration), "ckpt.pth")
-            mkdir_p(os.path.dirname(model_path))
-            torch.save({
-                'iter': iteration,
-                'pose_decoder': self.gaussians.pose_decoder.state_dict(),
-                'lweight_offset_decoder': self.gaussians.lweight_offset_decoder.state_dict(),
-            }, model_path)
 
     def getTrainCameras(self, scale=1.0):
         return self.train_cameras[scale]
