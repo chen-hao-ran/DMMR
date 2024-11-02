@@ -2,7 +2,7 @@
 # data related
 data_folder: "data/3DOH"
 is_seq: true
-frames: 1200           # frame length
+frames: 100           # frame length
 num_people: 1        # The number of people in this optimization
 
 opt_cam: false       # Optimize extrinsic camera parameters

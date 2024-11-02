@@ -109,11 +109,21 @@ def non_linear_solver(
     opt_start = time.time()
     # Initialize GS
     gaussians = GaussianModel(dataset_gs.sh_degree, dataset_gs.smpl_type, dataset_gs.actor_gender)
+    # 封装gs optmize需要用到的参数
+    gs_param = {}
+    gs_param['opt'] = opt
+    gs_param['pipe'] = pipe
+    gs_param['dataset_gs'] = dataset_gs
+    gs_param['gaussains'] = gaussians
+    gs_param['setting'] = setting
+    gs_param['dataset_obj'] = dataset_obj
     for opt_idx, curr_weights in enumerate(tqdm(opt_weights, desc='Stage')):
-        # 在0阶段和1阶段之间单独优化一次gs
+        gs_param['opt_idx'] = opt_idx
+        # 在1阶段和2阶段之间单独优化一次gs
         if opt_idx == 2:
             loss_gs = GS3DLoss()
             _ = loss_gs(opt, pipe, dataset_gs, gaussians, setting, dataset_obj)
+            gs_param['loss_gs'] = loss_gs
 
         # Load all parameters for optimization
         body_params = []
@@ -147,7 +157,9 @@ def non_linear_solver(
             use_vposer=use_vposer, vposer=vposer,
             use_motionprior=use_motionprior,
             pose_embeddings=pose_embeddings,
-            return_verts=True, return_full_pose=True)
+            gs_param=gs_param,
+            return_verts=True,
+            return_full_pose=True)
 
         if interactive:
             if use_cuda and torch.cuda.is_available():

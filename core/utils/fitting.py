@@ -144,6 +144,7 @@ class FittingMonitor():
                                use_vposer=False, vposer=None,
                                use_motionprior=False,
                                pose_embeddings=None,
+                               gs_param=None,
                                create_graph=False,
                                use_3d=False,
                                **kwargs):
@@ -187,6 +188,19 @@ class FittingMonitor():
                               use_vposer=use_vposer,
                               use_motionprior=use_motionprior,
                               **kwargs)
+
+            # 加上gs loss
+            opt_idx = gs_param['opt_idx']
+            if opt_idx in [2, 3]:
+                loss_gs = gs_param['loss_gs']
+                opt = gs_param['opt']
+                pipe = gs_param['pipe']
+                dataset_gs = gs_param['dataset_gs']
+                gaussians = gs_param['gaussains']
+                setting = gs_param['setting']
+                dataset_obj = gs_param['dataset_obj']
+                add_gs_loss = loss_gs(opt, pipe, dataset_gs, gaussians, setting, dataset_obj)
+                total_loss += 1e3 * add_gs_loss.item()
 
             if backward:
                 total_loss.backward(retain_graph=False, create_graph=create_graph)
