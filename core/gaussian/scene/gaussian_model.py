@@ -11,20 +11,18 @@
 
 import torch
 import numpy as np
-from utils.general_utils import inverse_sigmoid, get_expon_lr_func, build_rotation, build_scaling
+from core.gaussian.utils.general_utils import inverse_sigmoid, get_expon_lr_func, build_rotation, build_scaling
 from torch import nn
 import os
-from utils.system_utils import mkdir_p
+from core.gaussian.utils.system_utils import mkdir_p
 from plyfile import PlyData, PlyElement
-from utils.sh_utils import RGB2SH
+from core.gaussian.utils.sh_utils import RGB2SH
 from simple_knn._C import distCUDA2
-from utils.graphics_utils import BasicPointCloud
-from utils.general_utils import strip_symmetric, build_scaling_rotation
+from core.gaussian.utils.graphics_utils import BasicPointCloud
+from core.gaussian.utils.general_utils import strip_symmetric, build_scaling_rotation
 from knn_cuda import KNN
 import pickle
 import torch.nn.functional as F
-from nets.mlp_delta_body_pose import BodyPoseRefiner
-from nets.mlp_delta_weight_lbs import LBSOffsetDecoder
 
 class GaussianModel:
 
@@ -49,7 +47,7 @@ class GaussianModel:
         self.rotation_activation = torch.nn.functional.normalize
 
 
-    def __init__(self, sh_degree : int, smpl_type : str, motion_offset_flag : bool, actor_gender: str):
+    def __init__(self, sh_degree : int, smpl_type : str, actor_gender: str):
         self.active_sh_degree = 0
         self.max_sh_degree = sh_degree  
         self._xyz = torch.empty(0)
@@ -79,17 +77,6 @@ class GaussianModel:
         # load knn module
         self.knn = KNN(k=1, transpose_mode=True)
         self.knn_near_2 = KNN(k=2, transpose_mode=True)
-
-        self.motion_offset_flag = motion_offset_flag
-        if self.motion_offset_flag:
-            # load pose correction module
-            total_bones = self.SMPL_NEUTRAL['weights'].shape[-1]
-            self.pose_decoder = BodyPoseRefiner(total_bones=total_bones, embedding_size=3*(total_bones-1), mlp_width=128, mlp_depth=2)
-            self.pose_decoder.to(self.device)
-
-            # load lbs weight module
-            self.lweight_offset_decoder = LBSOffsetDecoder(total_bones=total_bones)
-            self.lweight_offset_decoder.to(self.device)
 
     def capture(self):
         return (
@@ -188,26 +175,14 @@ class GaussianModel:
         self.xyz_gradient_accum = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
         self.denom = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
 
-        if not self.motion_offset_flag:
-            l = [
-                {'params': [self._xyz], 'lr': training_args.position_lr_init * self.spatial_lr_scale, "name": "xyz"},
-                {'params': [self._features_dc], 'lr': training_args.feature_lr, "name": "f_dc"},
-                {'params': [self._features_rest], 'lr': training_args.feature_lr / 20.0, "name": "f_rest"},
-                {'params': [self._opacity], 'lr': training_args.opacity_lr, "name": "opacity"},
-                {'params': [self._scaling], 'lr': training_args.scaling_lr, "name": "scaling"},
-                {'params': [self._rotation], 'lr': training_args.rotation_lr, "name": "rotation"}
-            ]
-        else:
-            l = [
-                {'params': [self._xyz], 'lr': training_args.position_lr_init * self.spatial_lr_scale, "name": "xyz"},
-                {'params': [self._features_dc], 'lr': training_args.feature_lr, "name": "f_dc"},
-                {'params': [self._features_rest], 'lr': training_args.feature_lr / 20.0, "name": "f_rest"},
-                {'params': [self._opacity], 'lr': training_args.opacity_lr, "name": "opacity"},
-                {'params': [self._scaling], 'lr': training_args.scaling_lr, "name": "scaling"},
-                {'params': [self._rotation], 'lr': training_args.rotation_lr, "name": "rotation"},
-                {'params': self.pose_decoder.parameters(), 'lr': training_args.pose_refine_lr, "name": "pose_decoder"},
-                {'params': self.lweight_offset_decoder.parameters(), 'lr': training_args.lbs_offset_lr, "name": "lweight_offset_decoder"},
-            ] 
+        l = [
+            {'params': [self._xyz], 'lr': training_args.position_lr_init * self.spatial_lr_scale, "name": "xyz"},
+            {'params': [self._features_dc], 'lr': training_args.feature_lr, "name": "f_dc"},
+            {'params': [self._features_rest], 'lr': training_args.feature_lr / 20.0, "name": "f_rest"},
+            {'params': [self._opacity], 'lr': training_args.opacity_lr, "name": "opacity"},
+            {'params': [self._scaling], 'lr': training_args.scaling_lr, "name": "scaling"},
+            {'params': [self._rotation], 'lr': training_args.rotation_lr, "name": "rotation"}
+        ]
 
         self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
         self.xyz_scheduler_args = get_expon_lr_func(lr_init=training_args.position_lr_init*self.spatial_lr_scale,
@@ -638,10 +613,6 @@ class GaussianModel:
         _, vert_ids = self.knn(smpl_pts.float(), query_pts.float())
         if lbs_weights is None:
             bweights = self.SMPL_NEUTRAL['weights'][vert_ids].view(*vert_ids.shape[:2], joints_num)#.cuda() # [bs, points_num, joints_num]
-        else:
-            bweights = self.SMPL_NEUTRAL['weights'][vert_ids].view(*vert_ids.shape[:2], joints_num)
-            bweights = torch.log(bweights + 1e-9) + lbs_weights
-            bweights = F.softmax(bweights, dim=-1)
 
         ### From Big To T Pose
         big_pose_params = t_params
@@ -691,11 +662,6 @@ class GaussianModel:
             ident = torch.eye(3).cuda().float()
             batch_size = pose_.shape[0]
             rot_mats = batch_rodrigues(pose_.view(-1, 3)).view([batch_size, -1, 3, 3])
-
-            if correct_Rs is not None:
-                rot_mats_no_root = rot_mats[:, 1:]
-                rot_mats_no_root = torch.matmul(rot_mats_no_root.reshape(-1, 3, 3), correct_Rs.reshape(-1, 3, 3)).reshape(-1, joints_num-1, 3, 3)
-                rot_mats = torch.cat([rot_mats[:, 0:1], rot_mats_no_root], dim=1)
 
             pose_feature = (rot_mats[:, 1:, :, :] - ident).view([batch_size, -1])#.cuda()
             pose_offsets = torch.matmul(pose_feature.unsqueeze(1), posedirs.view(vertices_num*3, -1).transpose(1,0).unsqueeze(0)).view(batch_size, -1, 3)

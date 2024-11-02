@@ -140,4 +140,5 @@ data/3DOH
 data/motionprior_hp.pkl
 data/spin_checkpoint.pt
 data/vposer_snapshot.pkl
+assets/SMPL_NEUTRAL_CHOMP.pkl
 assets/SMPL_NEUTRAL.pkl

@@ -108,18 +108,6 @@ def keypoints_vis():
     cv2.destroyAllWindows()  # 关闭窗口
 
 def vertices_vis():
-    path = 'output/results/motion0/00000.pkl'
-    with open(path, 'rb') as file:
-        smpl_params = pickle.load(file)
-    sp = smpl_params['person00']
-    s = torch.from_numpy(sp['betas'].astype(np.float32).reshape(-1, 10))
-    p = torch.from_numpy(sp['pose'].astype(np.float32).reshape(-1, 72))
-    t = torch.from_numpy(sp['transl'].astype(np.float32).reshape(-1, 3))
-    smpl = SMPLModel(device=torch.device('cpu'), model_path='assets/SMPL_NEUTRAL.pkl')
-    v, j = smpl(s, p, t)
-    v = v.detach().cpu().numpy().reshape(-1, 3).astype(np.float32)
-    j = j.detach().cpu().numpy().astype(np.float32)
-
     # get camera info
     with open('data/3DOH/train.pkl', 'rb') as file:
         train_infos = pickle.load(file)
@@ -131,20 +119,40 @@ def vertices_vis():
     K = intri
     R = extri[:3, :3]
     T = extri[:3, 3]
-    projected = np.dot(v, R.T) + T
-    projected = np.dot(projected, K.T)
-    projected = projected[:, :2] / projected[:, 2:]
-    projected = projected.astype(np.int32)
 
-    h = 1536
-    w = 2048
-    image = np.zeros((h, w, 3), dtype=np.uint8)
-    for point in projected:
-        cv2.circle(image, tuple(point), 5, (0, 255, 0), -1)
-    cv2.imwrite(f"output/00000.png", cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    # cv2.imshow('projected smpl vertices', image)
-    # cv2.waitKey(0)  # 等待按键
-    # cv2.destroyAllWindows()  # 关闭窗口
+    # load smpl model
+    smpl = SMPLModel(device=torch.device('cpu'), model_path='assets/SMPL_NEUTRAL.pkl')
+
+    # make ouput dir
+    os.makedirs('output/smpl_proj', exist_ok=True)
+
+    # iterate
+    for idx in range(1200):
+        path = f'output/results/motion0/{idx:05d}.pkl'
+        with open(path, 'rb') as file:
+            smpl_params = pickle.load(file)
+        sp = smpl_params['person00']
+        s = torch.from_numpy(sp['betas'].astype(np.float32).reshape(-1, 10))
+        p = torch.from_numpy(sp['pose'].astype(np.float32).reshape(-1, 72))
+        t = torch.from_numpy(sp['transl'].astype(np.float32).reshape(-1, 3))
+        v, j = smpl(s, p, t)
+        v = v.detach().cpu().numpy().reshape(-1, 3).astype(np.float32)
+        j = j.detach().cpu().numpy().astype(np.float32)
+
+        projected = np.dot(v, R.T) + T
+        projected = np.dot(projected, K.T)
+        projected = projected[:, :2] / projected[:, 2:]
+        projected = projected.astype(np.int32)
+
+        h = 1536
+        w = 2048
+        image = np.zeros((h, w, 3), dtype=np.uint8)
+        for point in projected:
+            cv2.circle(image, tuple(point), 5, (0, 255, 0), -1)
+        cv2.imwrite(f"output/smpl_proj/{idx:05d}.png", cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        # cv2.imshow('projected smpl vertices', image)
+        # cv2.waitKey(0)  # 等待按键
+        # cv2.destroyAllWindows()  # 关闭窗口
 
 def get_smpl_params_vertices():
     # PREPARE
@@ -179,5 +187,5 @@ if __name__ == '__main__':
     # get_keypoints()
     # get_cam()
     # keypoints_vis()
-    # vertices_vis()
-    get_smpl_params_vertices()
+    vertices_vis()
+    # get_smpl_params_vertices()

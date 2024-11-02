@@ -26,3 +26,4 @@ class GS3DLoss(nn.Module):
         super(GS3DLoss, self).__init__()
 
     def forward(self, iteration):
+        pass

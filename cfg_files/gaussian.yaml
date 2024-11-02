@@ -1,0 +1,37 @@
+ModelParams:
+  sh_degree: 3
+  source_path: "data/3DOH"
+  model_path: ""
+  images: "images"
+  resolution: -1
+  white_background: false
+  data_device: "cuda"
+  eval: false
+  exp_name: "3DOH/motion0"
+  smpl_type: "smpl"
+  actor_gender: "neutral"
+
+PipelineParams:
+  convert_SHs_python: false
+  compute_cov3D_python: true
+  debug: false
+
+OptimizationParams:
+  iterations: 1200
+  position_lr_init: 0.00016
+  position_lr_final: 0.0000016
+  position_lr_delay_mult: 0.01
+  position_lr_max_steps: 30000
+  feature_lr: 0.0025
+  opacity_lr: 0.05
+  scaling_lr: 0.005
+  rotation_lr: 0.001
+  pose_refine_lr: 0.00005
+  lbs_offset_lr: 0.00005
+  percent_dense: 0.01
+  lambda_dssim: 0.2
+  densification_interval: 100
+  opacity_reset_interval: 3000
+  densify_from_iter: 400
+  densify_until_iter: 1000
+  densify_grad_threshold: 0.0002

@@ -14,8 +14,10 @@ import math
 from diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
 from core.gaussian.scene.gaussian_model import GaussianModel
 from core.gaussian.utils.sh_utils import eval_sh
+import numpy as np
+import cv2
 
-def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None, return_smpl_rot=False, transforms=None, translation=None):
+def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, iteration, scaling_modifier = 1.0, override_color = None, return_smpl_rot=False, transforms=None, translation=None):
     """
     Render the scene. 
     
@@ -51,40 +53,20 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     rasterizer = GaussianRasterizer(raster_settings=raster_settings)
     means3D = pc.get_xyz
 
-    if not pc.motion_offset_flag:
-        _, means3D, _, transforms, _ = pc.coarse_deform_c2source(means3D[None], viewpoint_camera.smpl_param,
-            viewpoint_camera.big_pose_smpl_param,
-            viewpoint_camera.big_pose_world_vertex[None])
-    else:
-        if transforms is None:
-            # pose offset
-            dst_posevec = viewpoint_camera.smpl_param['poses'][:, 3:]
-            pose_out = pc.pose_decoder(dst_posevec)
-            correct_Rs = pose_out['Rs']
+    _, means3D, _, transforms, _ = pc.coarse_deform_c2source(means3D[None], viewpoint_camera.smpl_param,
+        viewpoint_camera.big_pose_smpl_param,
+        viewpoint_camera.big_pose_world_vertex[None])
 
-            # SMPL lbs weights
-            lbs_weights = pc.lweight_offset_decoder(means3D[None].detach())
-            lbs_weights = lbs_weights.permute(0,2,1)
-
-            # transform points
-            _, means3D, _, transforms, translation = pc.coarse_deform_c2source(means3D[None], viewpoint_camera.smpl_param,
-                viewpoint_camera.big_pose_smpl_param,
-                viewpoint_camera.big_pose_world_vertex[None], lbs_weights=lbs_weights, correct_Rs=correct_Rs, return_transl=return_smpl_rot)
-        else:
-            correct_Rs = None
-            means3D = torch.matmul(transforms, means3D[..., None]).squeeze(-1) + translation
-
-    # points = means3D.detach().cpu().numpy().reshape(-1, 3)
-    # shs = np.random.random((points.shape[0], 3)) / 255.0
-    # # storePly(f'output/basketball28_Camera04/human1_96_pose_correction_lbs_offset_split_clone_merge_prune/check/points/{iteration}.ply', points, SH2RGB(shs) * 255)
-    # projected = np.dot(points, viewpoint_camera.R) + viewpoint_camera.T
-    # projected = np.dot(projected, viewpoint_camera.K.T)
-    # projected = projected[:, :2] / projected[:, 2:]
-    # projected = projected.astype(np.int32)
-    # image = np.zeros((viewpoint_camera.image_height, viewpoint_camera.image_width, 3), dtype=np.uint8)
-    # for point in projected:
-    #     cv2.circle(image, tuple(point), 5, (0, 255, 0), -1)
-    # cv2.imwrite(f'output/basketball28_Camera04/human0_96_pose_correction_lbs_offset_split_clone_merge_prune/check/projected/{iteration}.png', cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    # CHECK
+    points = means3D.detach().cpu().numpy().reshape(-1, 3)
+    projected = np.dot(points, viewpoint_camera.R) + viewpoint_camera.T
+    projected = np.dot(projected, viewpoint_camera.K.T)
+    projected = projected[:, :2] / projected[:, 2:]
+    projected = projected.astype(np.int32)
+    image = np.zeros((viewpoint_camera.image_height, viewpoint_camera.image_width, 3), dtype=np.uint8)
+    for point in projected:
+        cv2.circle(image, tuple(point), 5, (0, 255, 0), -1)
+    cv2.imwrite(f'output/3DOH/motion0/check/gs_projected/{iteration}.png', cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
 
     means3D = means3D.squeeze()
     means2D = screenspace_points
@@ -138,5 +120,4 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
             "visibility_filter" : radii > 0,
             "radii": radii,
             "transforms": transforms,
-            "translation": translation,
-            "correct_Rs": correct_Rs,}
+            "translation": translation,}

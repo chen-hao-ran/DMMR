@@ -10,6 +10,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+import os
 import time
 import numpy as np
 import torch
@@ -23,12 +24,14 @@ from random import randint
 from core.gaussian.utils.loss_utils import l1_loss, l2_loss, ssim
 from core.gaussian.scene import Scene
 from core.gaussian.scene.gaussian_model import GaussianModel
+from core.gaussian.gaussian_renderer import render
 loss_fn_vgg = lpips.LPIPS(net='vgg').to(torch.device('cuda', torch.cuda.current_device()))
 
 def non_linear_solver(
                     setting,
                     data,
                     dataset_obj,
+                    args_gs,
                     batch_size=1,
                     data_weights=None,
                     body_pose_prior_weights=None,
@@ -55,6 +58,9 @@ def non_linear_solver(
     models = setting['model']
     cameras = setting['cameras']
     pose_embeddings = setting['pose_embedding']
+    dataset_gs = args_gs['dataset']
+    opt = args_gs['opt']
+    pipe = args_gs['pipe']
 
     assert (len(data_weights) ==
             len(body_pose_prior_weights) and len(shape_weights) ==
@@ -164,10 +170,10 @@ def non_linear_solver(
 
     ## Gaussian iteration
     # initialize
-    gaussians = GaussianModel(dataset.sh_degree, dataset.smpl_type, dataset.motion_offset_flag, dataset.actor_gender)
-    scene = Scene(dataset, gaussians, models, pose_embeddings)
+    gaussians = GaussianModel(dataset_gs.sh_degree, dataset_gs.smpl_type, dataset_gs.actor_gender)
+    scene = Scene(dataset_gs, gaussians, setting, dataset_obj)
     gaussians.training_setup(opt)
-    bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
+    bg_color = [1, 1, 1] if dataset_gs.white_background else [0, 0, 0]
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
     iter_start = torch.cuda.Event(enable_timing = True)
     iter_end = torch.cuda.Event(enable_timing = True)
@@ -196,9 +202,14 @@ def non_linear_solver(
             viewpoint_stack = scene.getTrainCameras().copy()
         viewpoint_cam = viewpoint_stack.pop(randint(0, len(viewpoint_stack)-1))
 
-        # 求loss
-        render_pkg = render(viewpoint_cam, gaussians, pipe, background)
+        # 渲染
+        render_pkg = render(viewpoint_cam, gaussians, pipe, background, iteration)
         image, alpha, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["render_alpha"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
+
+        # 保存渲染图片
+        os.makedirs('output/3DOH/motion0/train_img', exist_ok=True)
+        check_image = (image.permute(1, 2, 0).cpu().detach().numpy() * 255).astype(np.uint8)
+        cv2.imwrite(f'output/3DOH/motion0/train_img/{iteration}.png', check_image)
 
         gt_image = viewpoint_cam.original_image.cuda()
         bkgd_mask = viewpoint_cam.bkgd_mask.cuda()
@@ -249,13 +260,20 @@ def non_linear_solver(
                     # gaussians.densify_and_prune(opt.densify_grad_threshold, 0.01, scene.cameras_extent, 1)
 
                 if iteration % opt.opacity_reset_interval == 0 or (
-                        dataset.white_background and iteration == opt.densify_from_iter):
+                        dataset_gs.white_background and iteration == opt.densify_from_iter):
                     gaussians.reset_opacity()
 
             # 优化器更新参数
             if iteration < opt.iterations:
                 gaussians.optimizer.step()
                 gaussians.optimizer.zero_grad(set_to_none = True)
+
+            # 更新进度条
+            if iteration % 10 == 0:
+                progress_bar.set_postfix({"loss": f"{loss.item()}"})
+                progress_bar.update(10)
+            if iteration == opt.iterations:
+                progress_bar.close()
 
             # 结束时间
             end_time = time.time()

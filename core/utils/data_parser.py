@@ -252,7 +252,7 @@ class FittingData(Dataset):
             keypoints.append(cam_keps)
             total_flags.append(cam_flag)
 
-        total_flags = np.array(total_flags, dtype=np.int)
+        total_flags = np.array(total_flags, dtype=np.int32)
         total_flags = np.max(total_flags, axis=0)
 
         camparam = os.path.join(self.data_folder, 'camparams', seq_name, 'camparams.txt')

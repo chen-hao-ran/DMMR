@@ -4,7 +4,7 @@ import torch
 from torch.nn import Module
 
 class SMPLModel(Module):
-    def __init__(self, device=torch.device('cpu'), model_path='./SMPL_NEUTRAL.pkl',
+    def __init__(self, device=torch.device('cpu'), model_path='./SMPL_NEUTRAL_CHOMP.pkl',
                  dtype=torch.float32, simplify=False, batch_size=1):
         super(SMPLModel, self).__init__()
         self.dtype = dtype

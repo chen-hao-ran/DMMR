@@ -15,13 +15,13 @@ import json
 from core.gaussian.scene.dataset_readers import readInfo
 from core.gaussian.scene.gaussian_model import GaussianModel
 from arguments import ModelParams
-from utils.camera_utils import cameraList_from_camInfos, camera_to_JSON
+from core.gaussian.utils.camera_utils import cameraList_from_camInfos, camera_to_JSON
 
 class Scene:
 
     gaussians : GaussianModel
 
-    def __init__(self, args : ModelParams, gaussians : GaussianModel, models, pose_embeddings, shuffle=True, resolution_scales=[1.0]):
+    def __init__(self, args : ModelParams, gaussians : GaussianModel, setting, dataset_obj, shuffle=True, resolution_scales=[1.0]):
         """b
         :param path: Path to colmap scene main folder.
         """
@@ -33,7 +33,7 @@ class Scene:
         self.test_cameras = {}
 
         # get scene_info
-        scene_info = readInfo(args.source_path, args.white_background, args.exp_name, args.eval, models, pose_embeddings)
+        scene_info = readInfo(args.source_path, args.white_background, args.exp_name, args.eval, setting, dataset_obj)
 
         # write cams
         if not self.loaded_iter:

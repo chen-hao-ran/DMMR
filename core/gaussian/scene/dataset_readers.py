@@ -2,7 +2,7 @@ import os
 import sys
 from PIL import Image
 from typing import NamedTuple
-from utils.graphics_utils import getWorld2View2, focal2fov, fov2focal
+from core.gaussian.utils.graphics_utils import getWorld2View2, focal2fov, fov2focal
 import numpy as np
 import torch
 import json
@@ -11,8 +11,9 @@ import cv2
 import random
 from pathlib import Path
 from plyfile import PlyData, PlyElement
-from utils.sh_utils import SH2RGB
+from core.gaussian.utils.sh_utils import SH2RGB
 from core.gaussian.scene.gaussian_model import BasicPointCloud
+from core.gaussian.smpl.smpl_torch_batch import SMPLModel
 
 from core.gaussian.smpl.smpl_numpy import SMPL
 
@@ -152,16 +153,18 @@ def get_mask(path, index, view_index, ims):
 
     return msk, msk_cihp
 
-def readInfo(path, white_background, output_path, eval, models, pose_embeddings):
+def readInfo(path, white_background, output_path, eval, setting, dataset_obj):
     train_view = [0]
     test_view = [5]
 
     print("Reading Training Transforms")
-    train_cam_infos = readCameras(path, train_view, white_background, models, pose_embeddings, split='train')
+    train_cam_infos = readCameras(path, train_view, white_background, setting, dataset_obj, split='train')
+    print("Reading Test Transforms")
+    test_cam_infos = readCameras(path, test_view, white_background, setting, dataset_obj, split='test')
 
-    if not eval:
-        train_cam_infos.extend(test_cam_infos)
-        test_cam_infos = []
+    # if not eval:
+    #     train_cam_infos.extend(test_cam_infos)
+    #     test_cam_infos = []
 
     nerf_normalization = getNerfppNorm(train_cam_infos)
     if len(train_view) == 1:
@@ -192,13 +195,16 @@ def readInfo(path, white_background, output_path, eval, models, pose_embeddings)
                            ply_path=ply_path)
     return scene_info
 
-def readCameras(path, output_view, white_background, models, pose_embeddings, image_scaling=1., split='train', novel_view_vis=False):
+def readCameras(path, output_view, white_background, setting, dataset_obj, image_scaling=1., split='train', novel_view_vis=False):
     cam_infos = []
 
     pose_start = 0
     if split == 'train':
         pose_interval = 3
-        pose_num = 100
+        pose_num = 30
+    elif split == 'test':
+        pose_interval = 10
+        pose_num = 1
 
     ann_file = os.path.join(path, 'annots.npy')
     annots = np.load(ann_file, allow_pickle=True).item()
@@ -217,7 +223,7 @@ def readCameras(path, output_view, white_background, models, pose_embeddings, im
         for i in range(ims.shape[0]):
             ims[i] = [x.split('/')[0] + '/' + x.split('/')[1].split('_')[4] + '.jpg' for x in ims[i]]
 
-    smpl_model = SMPL(sex='neutral')
+    smpl_model = SMPL(sex='neutral', model_dir='')
 
     # SMPL in canonical space
     big_pose_smpl_param = {}
@@ -240,6 +246,21 @@ def readCameras(path, output_view, white_background, models, pose_embeddings, im
     big_pose_min_xyz -= 0.05
     big_pose_max_xyz += 0.05
     big_pose_world_bound = np.stack([big_pose_min_xyz, big_pose_max_xyz], axis=0)
+
+    # load smpl params
+    model = setting['model'][0]
+    pose_embedding = setting['pose_embedding'][0]
+    vposer = setting['vposer']
+    frames_seq = dataset_obj.frames
+    body_pose = vposer.decode(pose_embedding, t=frames_seq).view(frames_seq, -1)
+    body_pose[:, -6:] = 0.
+    body_pose = body_pose.detach().cpu().numpy()
+    orient = np.array(model.global_orient.detach().cpu().numpy())
+    poses = np.hstack((orient, body_pose)).reshape(-1, 72)
+    shapes = model.betas.detach().cpu().numpy().astype(np.float32).reshape(-1, 10)
+    Ths = model.transl.detach().cpu().numpy().astype(np.float32).reshape(-1, 3)
+    Rhs = model.global_orient.detach().cpu().numpy().astype(np.float32).reshape(-1, 3)
+    smpl_chomp = SMPLModel(device=torch.device('cpu'), model_path='assets/SMPL_NEUTRAL.pkl')
 
     idx = 0
     for pose_index in range(pose_num):
@@ -290,21 +311,35 @@ def readCameras(path, output_view, white_background, models, pose_embeddings, im
             FovX = focal2fov(focalX, image.size[0])
             FovY = focal2fov(focalY, image.size[1])
 
+            # # load smpl data
+            # i = int(os.path.basename(image_path)[:-4])
+            # vertices_path = os.path.join(path, 'smpl_vertices', '{}.npy'.format(i))
+            # xyz = np.load(vertices_path).astype(np.float32)
+            #
+            # smpl_param_path = os.path.join(path, "smpl_params", '{}.npy'.format(i))
+            # smpl_param = np.load(smpl_param_path, allow_pickle=True).item()
+            # Rh = smpl_param['Rh']
+            # smpl_param['R'] = cv2.Rodrigues(Rh)[0].astype(np.float32)
+            # smpl_param['Th'] = smpl_param['Th'].astype(np.float32)
+            # smpl_param['shapes'] = smpl_param['shapes'].astype(np.float32)
+            # smpl_param['poses'] = smpl_param['poses'].astype(np.float32)
+
             # load smpl data
             i = int(os.path.basename(image_path)[:-4])
-            vertices_path = os.path.join(path, 'smpl_vertices', '{}.npy'.format(i))
-            xyz = np.load(vertices_path).astype(np.float32)
-
-            smpl_param_path = os.path.join(path, "smpl_params", '{}.npy'.format(i))
-            smpl_param = np.load(smpl_param_path, allow_pickle=True).item()
-            Rh = smpl_param['Rh']
-            smpl_param['R'] = cv2.Rodrigues(Rh)[0].astype(np.float32)
-            smpl_param['Th'] = smpl_param['Th'].astype(np.float32)
-            smpl_param['shapes'] = smpl_param['shapes'].astype(np.float32)
-            smpl_param['poses'] = smpl_param['poses'].astype(np.float32)
-
-            # load smpl data
-
+            pose = poses[i][None]
+            Th = Ths[i][None]
+            Rh = Rhs[i][None]
+            smpl_param = {
+                'R': cv2.Rodrigues(Rh)[0],
+                'Th': Th,
+                'shapes': shapes,
+                'poses': pose
+            }
+            s = torch.from_numpy(shapes)
+            p = torch.from_numpy(pose)
+            t = torch.from_numpy(Th)
+            xyz, _ = smpl_chomp(s, p, t)
+            xyz = xyz.detach().cpu().numpy().reshape(-1, 3)
 
             # obtain the original bounds for point sampling
             min_xyz = np.min(xyz, axis=0)
