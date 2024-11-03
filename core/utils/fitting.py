@@ -191,7 +191,8 @@ class FittingMonitor():
 
             # 加上gs loss
             opt_idx = gs_param['opt_idx']
-            if opt_idx in [2, 3]:
+            use_gs_loss = gs_param['use_gs_loss']
+            if opt_idx in [2, 3] and use_gs_loss:
                 loss_gs = gs_param['loss_gs']
                 opt = gs_param['opt']
                 pipe = gs_param['pipe']
@@ -199,7 +200,7 @@ class FittingMonitor():
                 gaussians = gs_param['gaussains']
                 setting = gs_param['setting']
                 dataset_obj = gs_param['dataset_obj']
-                add_gs_loss = loss_gs(opt, pipe, dataset_gs, gaussians, setting, dataset_obj)
+                add_gs_loss = loss_gs(opt, pipe, dataset_gs, gaussians, setting, dataset_obj, 1)
                 total_loss += 1e3 * add_gs_loss.item()
 
             if backward:

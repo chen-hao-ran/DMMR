@@ -1,50 +1,82 @@
 import os
-
-import pyrender
+import pickle
 import numpy as np
-import imageio
-from core.utils.module_utils import load_camera_para
-import trimesh
+import cv2
+from core.utils.render import Renderer
 
-# 加载 OBJ 文件
-mesh = trimesh.load('output/meshes/motion0/00299_00.obj')
 
-mesh.show()
+def project_to_img(joints, verts, faces, gt_joints, camera, image_path, img_folder, viz=False, path=None):
+    exp = 1
+    if len(verts) < 1:
+        return
+    for v, (cam, gt_joint_ids, img_path) in enumerate(zip(camera, gt_joints, image_path)):
+        if v > 0 and exp:
+            break
+        intri = np.eye(3)
+        rot = cam.rotation.detach().cpu().numpy()
+        trans = cam.translation.detach().cpu().numpy()
+        intri[0][0] = cam.focal_length_x.detach().cpu().numpy()
+        intri[1][1] = cam.focal_length_y.detach().cpu().numpy()
+        intri[:2, 2] = cam.center.detach().cpu().numpy()
+        rot_mat = cv2.Rodrigues(rot)[0]
 
-# 创建场景
-scene = pyrender.Scene()
+        img = cv2.imread(os.path.join(img_folder, img_path))
+        render = Renderer(resolution=(img.shape[1], img.shape[0]))
+        img = render.render_multiperson(verts, faces, rot_mat.copy(), trans.copy(), intri.copy(), img.copy(),
+                                        viz=False)
 
-# 将 mesh 添加到场景中
-pyrender_mesh = pyrender.Mesh.from_trimesh(mesh)
-scene.add(pyrender_mesh)
+        img_out_file = os.path.join(path, img_path)
+        if not os.path.exists(os.path.dirname(img_out_file)):
+            os.makedirs(os.path.dirname(img_out_file))
+        cv2.imwrite(img_out_file, img)
+        render.renderer.delete()
+        del render
 
-# 创建相机
-extri, intri = load_camera_para('data/3DOH/camparams/motion0/camparams.txt')
-v = 0
-fx = intri[v][0][0]
-fy = intri[v][1][1]
-H = 1536
-W = 2048
-xfov = 2 * np.arctan(W / 2 / fx)
-yfov = 2 * np.arctan(H / 2 / fy)
+def img2video():
+    # 图像文件夹路径
+    image_folder = 'output/images/motion0/Camera00'  # 替换为你的图像文件夹路径
+    video_name = 'add_gs.avi'  # 输出视频文件名
 
-camera = pyrender.PerspectiveCamera(yfov=yfov)
-cam_pose = extri[v]
-scene.add(camera, pose=cam_pose)
+    # 获取图像文件名并排序
+    images = [img for img in os.listdir(image_folder) if img.endswith(".jpg")]
+    images.sort()
 
-# 创建光源
-light = pyrender.DirectionalLight(color=np.ones(3), intensity=1.0)
-scene.add(light, pose=cam_pose)
+    # 读取第一张图像以获取视频参数
+    first_image = cv2.imread(os.path.join(image_folder, images[0]))
+    height, width, layers = first_image.shape
 
-# 创建离屏渲染器
-renderer = pyrender.OffscreenRenderer(W, H)
+    # 创建 VideoWriter 对象
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')  # 选择编码方式
+    video = cv2.VideoWriter(video_name, fourcc, 15, (width, height))  # 30 是帧率
 
-# 渲染场景
-color, depth = renderer.render(scene)
+    # 将图像写入视频
+    for image in images:
+        img_path = os.path.join(image_folder, image)
+        video.write(cv2.imread(img_path))
 
-# 保存渲染结果为图像
-os.makedirs('output/render/smpl', exist_ok=True)
-imageio.imwrite('output/render/smpl/00001.png', color)
+    # 释放 VideoWriter 对象
+    video.release()
+    cv2.destroyAllWindows()
 
-# 清理资源
-renderer.delete()
+    print(f'视频已生成：{video_name}')
+
+if __name__ == '__main__':
+    for i in range(100):
+        path = f'output/3DOH/motion0/render_data/{i:03d}'
+        with open(os.path.join(path, 'joints.pkl'), 'rb') as file:
+            joints = pickle.load(file)
+        with open(os.path.join(path, 'meshes.pkl'), 'rb') as file:
+            meshes = pickle.load(file)
+        with open(os.path.join(path, 'faces.pkl'), 'rb') as file:
+            faces = pickle.load(file)
+        with open(os.path.join(path, 'keyp_p.pkl'), 'rb') as file:
+            keyp_p = pickle.load(file)
+        with open(os.path.join(path, 'camera.pkl'), 'rb') as file:
+            camera = pickle.load(file)
+        with open(os.path.join(path, 'img_p.pkl'), 'rb') as file:
+            img_p = pickle.load(file)
+        dataset_obj_img_folder = 'data/3DOH/images'
+        setting_img_folder = 'output/images'
+        project_to_img(joints, meshes, faces, keyp_p, camera, img_p, dataset_obj_img_folder, viz=False, path=setting_img_folder)
+
+    img2video()

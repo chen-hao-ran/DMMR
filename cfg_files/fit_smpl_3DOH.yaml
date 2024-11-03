@@ -12,8 +12,8 @@ output_folder: 'output'
 result_folder: 'results'
 visualize: False
 interactive: True
-save_meshes: true
-save_images: false
+save_meshes: True
+save_images: True
 
 # device
 use_cuda: true

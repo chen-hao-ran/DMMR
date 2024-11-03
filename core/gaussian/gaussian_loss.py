@@ -22,7 +22,7 @@ class GS3DLoss(nn.Module):
     def __init__(self,):
         super(GS3DLoss, self).__init__()
 
-    def forward(self, opt, pipe, dataset_gs, gaussians, setting, dataset_obj):
+    def forward(self, opt, pipe, dataset_gs, gaussians, setting, dataset_obj, iterations):
         # initialize
         scene = Scene(dataset_gs, gaussians, setting, dataset_obj)
         gaussians.training_setup(opt)
@@ -30,12 +30,12 @@ class GS3DLoss(nn.Module):
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
         viewpoint_stack = None
         first_iter = 0
-        progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
+        progress_bar = tqdm(range(first_iter, iterations), desc="Training progress")
         first_iter += 1
         elapsed_time = 0
 
         # interate
-        for iteration in range(first_iter, opt.iterations + 1):
+        for iteration in range(first_iter, iterations + 1):
             # 更新学习率
             gaussians.update_learning_rate(iteration)
 
@@ -112,7 +112,7 @@ class GS3DLoss(nn.Module):
                         gaussians.reset_opacity()
 
                 # 优化器更新参数
-                if iteration < opt.iterations:
+                if iteration < iterations:
                     gaussians.optimizer.step()
                     gaussians.optimizer.zero_grad(set_to_none=True)
 
@@ -120,7 +120,7 @@ class GS3DLoss(nn.Module):
                 if iteration % 10 == 0:
                     progress_bar.set_postfix({"loss": f"{loss.item()}"})
                     progress_bar.update(10)
-                if iteration == opt.iterations:
+                if iteration == iterations:
                     progress_bar.close()
 
                 # 结束时间

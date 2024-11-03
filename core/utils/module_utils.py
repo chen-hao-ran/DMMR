@@ -23,7 +23,6 @@ import cv2
 from copy import deepcopy
 from core.utils.camera import create_camera
 from core.SPIN.spin import SPIN
-
 def generate_colorbar(N = 20, cmap = 'jet'):
     bar = ((np.arange(N)/(N-1))*255).astype(np.uint8).reshape(-1, 1)
     colorbar = cv2.applyColorMap(bar, cv2.COLORMAP_JET).squeeze()
@@ -456,11 +455,28 @@ def save_results(setting, data, result, dataset_obj,
         with open(result_fn, 'wb') as result_file:
             pickle.dump(frame_results, result_file, protocol=2)
 
-        # save image
-        if save_images:
-            img_p = [img_path[v][i] for v in range(len(data['img_path']))]
-            keyp_p = [keypoints[v][i] for v in range(len(data['img_path']))]
-            project_to_img(joints, meshes, faces, keyp_p, camera, img_p, dataset_obj.img_folder, viz=True, path=setting['img_folder'])
+        path = f'output/3DOH/motion0/render_data/{i:03d}'
+        os.makedirs(path, exist_ok=True)
+        img_p = [img_path[v][i] for v in range(len(data['img_path']))]
+        keyp_p = [keypoints[v][i] for v in range(len(data['img_path']))]
+        with open(os.path.join(path, 'joints.pkl'), 'wb') as file:
+            pickle.dump(convert_to_cpu(joints), file)
+        with open(os.path.join(path, 'meshes.pkl'), 'wb') as file:
+            pickle.dump(convert_to_cpu(meshes), file)
+        with open(os.path.join(path, 'faces.pkl'), 'wb') as file:
+            pickle.dump(faces, file)
+        with open(os.path.join(path, 'keyp_p.pkl'), 'wb') as file:
+            pickle.dump(keyp_p, file)
+        with open(os.path.join(path, 'camera.pkl'), 'wb') as file:
+            pickle.dump(convert_to_cpu(camera), file)
+        with open(os.path.join(path, 'img_p.pkl'), 'wb') as file:
+            pickle.dump(img_p, file)
+
+        # # save image
+        # if save_images:
+        #     img_p = [img_path[v][i] for v in range(len(data['img_path']))]
+        #     keyp_p = [keypoints[v][i] for v in range(len(data['img_path']))]
+        #     project_to_img(joints, meshes, faces, keyp_p, camera, img_p, dataset_obj.img_folder, viz=True, path=setting['img_folder'])
 
 
     if kwargs.get('opt_cam'):
@@ -773,3 +789,23 @@ def add_camera_mesh(extrinsic, camerascale=1):
         P[:,i] = p[:3] / p[3]
 
     return P
+
+def convert_to_cpu(obj):
+    # 检查对象类型，如果是列表，逐个元素转移到 CPU
+    if isinstance(obj, list):
+        return [convert_to_cpu(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return tuple(convert_to_cpu(item) for item in obj)
+    elif isinstance(obj, dict):
+        return {key: convert_to_cpu(value) for key, value in obj.items()}
+    elif isinstance(obj, torch.Tensor):
+        # 如果是张量，转移到 CPU
+        return obj.cpu()
+    elif hasattr(obj, '__dict__'):
+        # 如果是对象，遍历其属性
+        for attr, value in obj.__dict__.items():
+            setattr(obj, attr, convert_to_cpu(value))
+        return obj
+    else:
+        # 对于其他类型，直接返回
+        return obj
