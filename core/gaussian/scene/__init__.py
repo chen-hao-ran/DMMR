@@ -81,3 +81,7 @@ class Scene:
 
     def getTestCameras(self, scale=1.0):
         return self.test_cameras[scale]
+
+    def changeSmpl(self, setting, dataset_obj):
+        train_cameras['1.0'][pose_idx]
+

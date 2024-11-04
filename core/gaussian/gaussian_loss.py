@@ -12,7 +12,6 @@ import cv2
 import lpips
 from random import randint
 from core.gaussian.utils.loss_utils import l1_loss, l2_loss, ssim
-from core.gaussian.scene import Scene
 from core.gaussian.gaussian_renderer import render
 loss_fn_vgg = lpips.LPIPS(net='vgg').to(torch.device('cuda', torch.cuda.current_device()))
 from tqdm import tqdm
@@ -22,9 +21,9 @@ class GS3DLoss(nn.Module):
     def __init__(self,):
         super(GS3DLoss, self).__init__()
 
-    def forward(self, opt, pipe, dataset_gs, gaussians, setting, dataset_obj, iterations):
+    def forward(self, opt, pipe, dataset_gs, gaussians, scene, setting, dataset_obj, iterations):
         # initialize
-        scene = Scene(dataset_gs, gaussians, setting, dataset_obj)
+        scene.changeSmpl(setting, dataset_obj)
         gaussians.training_setup(opt)
         bg_color = [1, 1, 1] if dataset_gs.white_background else [0, 0, 0]
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")

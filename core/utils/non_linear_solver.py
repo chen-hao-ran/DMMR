@@ -20,6 +20,7 @@ from core.utils import fitting
 
 from core.gaussian.scene.gaussian_model import GaussianModel
 from core.gaussian.gaussian_loss import GS3DLoss
+from core.gaussian.scene import Scene
 def non_linear_solver(
                     setting,
                     data,
@@ -109,6 +110,7 @@ def non_linear_solver(
     opt_start = time.time()
     # Initialize GS
     gaussians = GaussianModel(dataset_gs.sh_degree, dataset_gs.smpl_type, dataset_gs.actor_gender)
+    scene = Scene(dataset_gs, gaussians, setting, dataset_obj)
     use_gs_loss = True
     # 封装gs optmize需要用到的参数
     gs_param = {}
@@ -124,7 +126,7 @@ def non_linear_solver(
         # 在1阶段和2阶段之间单独优化一次gs
         if opt_idx == 2 and use_gs_loss:
             loss_gs = GS3DLoss()
-            _ = loss_gs(opt, pipe, dataset_gs, gaussians, setting, dataset_obj, opt.iterations)
+            _ = loss_gs(opt, pipe, dataset_gs, gaussians, scene, setting, dataset_obj, opt.iterations)
             gs_param['loss_gs'] = loss_gs
 
         # Load all parameters for optimization
@@ -181,6 +183,15 @@ def non_linear_solver(
             if interactive:
                 tqdm.write('Stage {:03d} done after {:.4f} seconds'.format(
                     opt_idx, elapsed))
+
+        # # 保存高斯checkpoints
+        # os.makedirs('output/3DOH/motion0/cnkpnt', exist_ok=True)
+        # torch.save(gaussians.capture(), "output/3DOH/motion0/chkpnt" + str(opt_idx) + ".pth")
+
+        # # 渲染最终高斯
+        # if opt_idx == 3:
+        #     render_pkg = render(viewpoint_cam, gaussians, pipe, background, iteration)
+        #     image = render_pkg["render"]
 
 
     if interactive:
