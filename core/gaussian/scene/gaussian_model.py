@@ -92,8 +92,6 @@ class GaussianModel:
             self.denom,
             self.optimizer.state_dict(),
             self.spatial_lr_scale,
-            self.pose_decoder,
-            self.lweight_offset_decoder,
         )
     
     def restore(self, model_args, training_args):

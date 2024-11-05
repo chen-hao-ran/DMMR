@@ -34,11 +34,12 @@ def project_to_img(joints, verts, faces, gt_joints, camera, image_path, img_fold
 
 def img2video():
     # 图像文件夹路径
-    image_folder = 'output/images/motion0/Camera00'  # 替换为你的图像文件夹路径
-    video_name = 'add_gs.avi'  # 输出视频文件名
+    # image_folder = 'output/images/motion0/Camera00'  # 替换为你的图像文件夹路径
+    image_folder = 'output/render/gs'
+    video_name = 'gs.avi'  # 输出视频文件名
 
     # 获取图像文件名并排序
-    images = [img for img in os.listdir(image_folder) if img.endswith(".jpg")]
+    images = [img for img in os.listdir(image_folder) if img.endswith(".png")]
     images.sort()
 
     # 读取第一张图像以获取视频参数
@@ -47,7 +48,7 @@ def img2video():
 
     # 创建 VideoWriter 对象
     fourcc = cv2.VideoWriter_fourcc(*'XVID')  # 选择编码方式
-    video = cv2.VideoWriter(video_name, fourcc, 15, (width, height))  # 30 是帧率
+    video = cv2.VideoWriter(video_name, fourcc, 15, (width, height))
 
     # 将图像写入视频
     for image in images:
@@ -61,22 +62,22 @@ def img2video():
     print(f'视频已生成：{video_name}')
 
 if __name__ == '__main__':
-    for i in range(100):
-        path = f'output/3DOH/motion0/render_data/{i:03d}'
-        with open(os.path.join(path, 'joints.pkl'), 'rb') as file:
-            joints = pickle.load(file)
-        with open(os.path.join(path, 'meshes.pkl'), 'rb') as file:
-            meshes = pickle.load(file)
-        with open(os.path.join(path, 'faces.pkl'), 'rb') as file:
-            faces = pickle.load(file)
-        with open(os.path.join(path, 'keyp_p.pkl'), 'rb') as file:
-            keyp_p = pickle.load(file)
-        with open(os.path.join(path, 'camera.pkl'), 'rb') as file:
-            camera = pickle.load(file)
-        with open(os.path.join(path, 'img_p.pkl'), 'rb') as file:
-            img_p = pickle.load(file)
-        dataset_obj_img_folder = 'data/3DOH/images'
-        setting_img_folder = 'output/images'
-        project_to_img(joints, meshes, faces, keyp_p, camera, img_p, dataset_obj_img_folder, viz=False, path=setting_img_folder)
+    # for i in range(100):
+    #     path = f'output/3DOH/motion0/render_data/{i:03d}'
+    #     with open(os.path.join(path, 'joints.pkl'), 'rb') as file:
+    #         joints = pickle.load(file)
+    #     with open(os.path.join(path, 'meshes.pkl'), 'rb') as file:
+    #         meshes = pickle.load(file)
+    #     with open(os.path.join(path, 'faces.pkl'), 'rb') as file:
+    #         faces = pickle.load(file)
+    #     with open(os.path.join(path, 'keyp_p.pkl'), 'rb') as file:
+    #         keyp_p = pickle.load(file)
+    #     with open(os.path.join(path, 'camera.pkl'), 'rb') as file:
+    #         camera = pickle.load(file)
+    #     with open(os.path.join(path, 'img_p.pkl'), 'rb') as file:
+    #         img_p = pickle.load(file)
+    #     dataset_obj_img_folder = 'data/3DOH/images'
+    #     setting_img_folder = 'output/images'
+    #     project_to_img(joints, meshes, faces, keyp_p, camera, img_p, dataset_obj_img_folder, viz=False, path=setting_img_folder)
 
     img2video()

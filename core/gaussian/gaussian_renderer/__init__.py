@@ -17,7 +17,7 @@ from core.gaussian.utils.sh_utils import eval_sh
 import numpy as np
 import cv2
 
-def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, iteration, scaling_modifier = 1.0, override_color = None, return_smpl_rot=False, transforms=None, translation=None):
+def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None, return_smpl_rot=False, transforms=None, translation=None):
     """
     Render the scene. 
     
@@ -64,9 +64,9 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     projected = projected[:, :2] / projected[:, 2:]
     projected = projected.astype(np.int32)
     image = np.zeros((viewpoint_camera.image_height, viewpoint_camera.image_width, 3), dtype=np.uint8)
-    for point in projected:
-        cv2.circle(image, tuple(point), 5, (0, 255, 0), -1)
-    cv2.imwrite(f'output/3DOH/motion0/check/gs_projected/{iteration}.png', cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    # for point in projected:
+    #     cv2.circle(image, tuple(point), 5, (0, 255, 0), -1)
+    # cv2.imwrite(f'output/3DOH/motion0/check/gs_projected/{iteration}.png', cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
 
     means3D = means3D.squeeze()
     means2D = screenspace_points

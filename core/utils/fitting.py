@@ -200,7 +200,7 @@ class FittingMonitor():
                 gaussians = gs_param['gaussains']
                 setting = gs_param['setting']
                 dataset_obj = gs_param['dataset_obj']
-                add_gs_loss = loss_gs(opt, pipe, dataset_gs, gaussians, setting, dataset_obj, 1)
+                add_gs_loss = loss_gs(opt, pipe, dataset_gs, gaussians, setting, dataset_obj, 1, 1)
                 total_loss += 1e3 * add_gs_loss.item()
 
             if backward:

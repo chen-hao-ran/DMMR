@@ -153,14 +153,14 @@ def get_mask(path, index, view_index, ims):
 
     return msk, msk_cihp
 
-def readInfo(path, white_background, output_path, eval, setting, dataset_obj):
+def readInfo(path, white_background, output_path, eval, setting, dataset_obj, mode):
     train_view = [0]
-    test_view = [5]
+    test_view = [0]
 
     print("Reading Training Transforms")
-    train_cam_infos = readCameras(path, train_view, white_background, setting, dataset_obj, split='train')
+    train_cam_infos = readCameras(path, train_view, white_background, setting, dataset_obj, mode, split='train')
     print("Reading Test Transforms")
-    test_cam_infos = readCameras(path, test_view, white_background, setting, dataset_obj, split='test')
+    test_cam_infos = readCameras(path, test_view, white_background, setting, dataset_obj, mode, split='test')
 
     # if not eval:
     #     train_cam_infos.extend(test_cam_infos)
@@ -195,16 +195,20 @@ def readInfo(path, white_background, output_path, eval, setting, dataset_obj):
                            ply_path=ply_path)
     return scene_info
 
-def readCameras(path, output_view, white_background, setting, dataset_obj, image_scaling=1., split='train', novel_view_vis=False):
+def readCameras(path, output_view, white_background, setting, dataset_obj, mode, image_scaling=1., split='train', novel_view_vis=False):
     cam_infos = []
 
-    pose_start = 0
+    pose_start = 100
     if split == 'train':
         pose_interval = 3
         pose_num = 30
     elif split == 'test':
-        pose_interval = 10
-        pose_num = 1
+        if mode == 0 or mode == 1:
+            pose_interval = 10
+            pose_num = 1
+        else:
+            pose_interval = 1
+            pose_num = 100
 
     ann_file = os.path.join(path, 'annots.npy')
     annots = np.load(ann_file, allow_pickle=True).item()

@@ -21,7 +21,7 @@ class Scene:
 
     gaussians : GaussianModel
 
-    def __init__(self, args : ModelParams, gaussians : GaussianModel, setting, dataset_obj, shuffle=True, resolution_scales=[1.0]):
+    def __init__(self, args : ModelParams, gaussians : GaussianModel, setting, dataset_obj, mode, shuffle=True, resolution_scales=[1.0]):
         """b
         :param path: Path to colmap scene main folder.
         """
@@ -33,7 +33,7 @@ class Scene:
         self.test_cameras = {}
 
         # get scene_info
-        scene_info = readInfo(args.source_path, args.white_background, args.exp_name, args.eval, setting, dataset_obj)
+        scene_info = readInfo(args.source_path, args.white_background, args.exp_name, args.eval, setting, dataset_obj, mode)
 
         # write cams
         if not self.loaded_iter:
@@ -53,7 +53,7 @@ class Scene:
         # cam shuffle
         if shuffle:
             random.shuffle(scene_info.train_cameras)  # Multi-res consistent random shuffling
-            random.shuffle(scene_info.test_cameras)  # Multi-res consistent random shuffling
+            # random.shuffle(scene_info.test_cameras)  # Multi-res consistent random shuffling
 
         # cameras_extent
         self.cameras_extent = scene_info.nerf_normalization["radius"]
@@ -70,7 +70,8 @@ class Scene:
                                                            "iteration_" + str(self.loaded_iter),
                                                            "point_cloud.ply"))
         else:
-            self.gaussians.create_from_pcd(scene_info.point_cloud, self.cameras_extent)
+            if mode == 0:
+                self.gaussians.create_from_pcd(scene_info.point_cloud, self.cameras_extent)
 
     def save(self, iteration):
         point_cloud_path = os.path.join(self.model_path, "point_cloud/iteration_{}".format(iteration))
@@ -81,7 +82,4 @@ class Scene:
 
     def getTestCameras(self, scale=1.0):
         return self.test_cameras[scale]
-
-    def changeSmpl(self, setting, dataset_obj):
-        train_cameras['1.0'][pose_idx]
 

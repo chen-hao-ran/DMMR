@@ -16,14 +16,15 @@ from core.gaussian.gaussian_renderer import render
 loss_fn_vgg = lpips.LPIPS(net='vgg').to(torch.device('cuda', torch.cuda.current_device()))
 from tqdm import tqdm
 import time
+from core.gaussian.scene import Scene
 
 class GS3DLoss(nn.Module):
     def __init__(self,):
         super(GS3DLoss, self).__init__()
 
-    def forward(self, opt, pipe, dataset_gs, gaussians, scene, setting, dataset_obj, iterations):
+    def forward(self, opt, pipe, dataset_gs, gaussians, setting, dataset_obj, iterations, mode):
         # initialize
-        scene.changeSmpl(setting, dataset_obj)
+        scene = Scene(dataset_gs, gaussians, setting, dataset_obj, mode)
         gaussians.training_setup(opt)
         bg_color = [1, 1, 1] if dataset_gs.white_background else [0, 0, 0]
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
@@ -51,14 +52,14 @@ class GS3DLoss(nn.Module):
             viewpoint_cam = viewpoint_stack.pop(randint(0, len(viewpoint_stack) - 1))
 
             # 渲染
-            render_pkg = render(viewpoint_cam, gaussians, pipe, background, iteration)
+            render_pkg = render(viewpoint_cam, gaussians, pipe, background)
             image, alpha, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg[
                 "render_alpha"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
 
             # 保存渲染图片
-            os.makedirs('output/3DOH/motion0/train_img', exist_ok=True)
+            os.makedirs('output/3DOH/motion18/train_img', exist_ok=True)
             check_image = (image.permute(1, 2, 0).cpu().detach().numpy() * 255).astype(np.uint8)
-            cv2.imwrite(f'output/3DOH/motion0/train_img/{iteration}.png', check_image)
+            cv2.imwrite(f'output/3DOH/motion18/train_img/{iteration}.png', check_image)
 
             gt_image = viewpoint_cam.original_image.cuda()
             bkgd_mask = viewpoint_cam.bkgd_mask.cuda()

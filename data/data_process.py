@@ -65,13 +65,13 @@ def get_keypoints():
 
 def get_cam():
     # PREPARE
-    save_dir = 'data/3DOH/camparams/motion0'
+    save_dir = 'data/3DOH/camparams/motion18'
     os.makedirs(save_dir, exist_ok=True)
     save_path = os.path.join(save_dir, 'camparams.txt')
     with open('data/3DOH/train.pkl', 'rb') as file:
         train_infos = pickle.load(file)
     print('successfully read train.pkl!')
-    train_info = train_infos[0]
+    train_info = train_infos[18]
 
     # WRITE
     with open(save_path, 'w') as file:
@@ -182,10 +182,68 @@ def get_smpl_params_vertices():
         np.save(f'output/smpl_vertices/{i}.npy', v)
         np.save(f'output/smpl_params/{i}.npy', sp_save)
 
+def del_image():
+    for idx in range(6):
+        img_dir = f'data/3DOH/images/motion18/Camera{idx:02d}'
+        imgs = os.listdir(img_dir)
+        for img in imgs:
+            img_path = os.path.join(img_dir, img)
+            img_idx = int(img[:-4])
+            if img_idx < 100 or img_idx > 199:
+                os.remove(img_path)
+
+def get_annots():
+    # 读取plk文件，即smpl_params参数 39 * 6 * 1200
+    pkl_path = 'data/3DOH/train.pkl'
+    with open(pkl_path, 'rb') as file:
+        params = pickle.load(file)
+
+    params = params[18]
+
+    # 创建字典
+    annots = {}
+    cams = {}
+
+    # 将cam info 存入字典
+    K = []
+    D = []
+    dt = np.zeros((1, 5))
+    R = []
+    T = []
+    for i in range(6):
+        intri = params[i][0]['0']['intri']
+        extri = params[i][0]['0']['extri']
+        K.append(intri)
+        R.append(extri[:3, :3])
+        T.append((extri[:3, 3]).reshape(3, 1))
+        D.append(dt)
+    cams['K'] = K
+    cams['R'] = R
+    cams['T'] = T
+    cams['D'] = D
+    annots['cams'] = cams
+
+    # 将imgs info 存入字典
+    imgs = []
+    for i in range(1200):
+        img = []
+        sub_ims = {}
+        for j in range(6):
+            path = os.path.join("images", "motion18", "Camera{:02d}".format(j), "{:05d}.jpg".format(i))
+            img.append(path)
+        sub_ims['ims'] = img
+        imgs.append(sub_ims)
+    annots['ims'] = imgs
+    np.save("data/3DOH/annots.npy", annots)
+
+    print(annots)
+
 if __name__ == '__main__':
     # read_data()
     # get_keypoints()
     # get_cam()
     # keypoints_vis()
-    vertices_vis()
+    # vertices_vis()
     # get_smpl_params_vertices()
+    # del_image()
+    get_annots()
