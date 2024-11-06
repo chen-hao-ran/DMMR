@@ -10,8 +10,8 @@ def project_to_img(joints, verts, faces, gt_joints, camera, image_path, img_fold
     if len(verts) < 1:
         return
     for v, (cam, gt_joint_ids, img_path) in enumerate(zip(camera, gt_joints, image_path)):
-        if v > 0 and exp:
-            break
+        # if v > 0 and exp:
+        #     break
         intri = np.eye(3)
         rot = cam.rotation.detach().cpu().numpy()
         trans = cam.translation.detach().cpu().numpy()
@@ -33,37 +33,41 @@ def project_to_img(joints, verts, faces, gt_joints, camera, image_path, img_fold
         del render
 
 def img2video():
-    # 图像文件夹路径
-    # image_folder = 'output/images/motion0/Camera00'  # 替换为你的图像文件夹路径
-    image_folder = 'output/render/gs'
-    video_name = 'gs.avi'  # 输出视频文件名
+    for idx in range(1):
+        # 图像文件夹路径
+        # image_folder = f'output/images/motion16/Camera{idx:02d}'  # 替换为你的图像文件夹路径
+        # image_folder = 'output/images/motion16/Camera04'  # 替换为你的图像文件夹路径
+        image_folder = 'output/render/gs'
+        # video_name = f'origin{idx:02d}.avi'  # 输出视频文件名
+        # video_name = 'addgs04.avi'  # 输出视频文件名
+        video_name = 'gs.avi'  # 输出视频文件名
 
-    # 获取图像文件名并排序
-    images = [img for img in os.listdir(image_folder) if img.endswith(".png")]
-    images.sort()
+        # 获取图像文件名并排序
+        images = [img for img in os.listdir(image_folder) if img.endswith(".png")]
+        images.sort()
 
-    # 读取第一张图像以获取视频参数
-    first_image = cv2.imread(os.path.join(image_folder, images[0]))
-    height, width, layers = first_image.shape
+        # 读取第一张图像以获取视频参数
+        first_image = cv2.imread(os.path.join(image_folder, images[0]))
+        height, width, layers = first_image.shape
 
-    # 创建 VideoWriter 对象
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')  # 选择编码方式
-    video = cv2.VideoWriter(video_name, fourcc, 15, (width, height))
+        # 创建 VideoWriter 对象
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')  # 选择编码方式
+        video = cv2.VideoWriter(video_name, fourcc, 15, (width, height))
 
-    # 将图像写入视频
-    for image in images:
-        img_path = os.path.join(image_folder, image)
-        video.write(cv2.imread(img_path))
+        # 将图像写入视频
+        for image in images:
+            img_path = os.path.join(image_folder, image)
+            video.write(cv2.imread(img_path))
 
-    # 释放 VideoWriter 对象
-    video.release()
-    cv2.destroyAllWindows()
+        # 释放 VideoWriter 对象
+        video.release()
+        cv2.destroyAllWindows()
 
-    print(f'视频已生成：{video_name}')
+        print(f'第{idx}个视频已生成：{video_name}')
 
 if __name__ == '__main__':
     # for i in range(100):
-    #     path = f'output/3DOH/motion0/render_data/{i:03d}'
+    #     path = f'output/3DOH/motion16/render_data/{i:03d}'
     #     with open(os.path.join(path, 'joints.pkl'), 'rb') as file:
     #         joints = pickle.load(file)
     #     with open(os.path.join(path, 'meshes.pkl'), 'rb') as file:

@@ -154,8 +154,8 @@ def get_mask(path, index, view_index, ims):
     return msk, msk_cihp
 
 def readInfo(path, white_background, output_path, eval, setting, dataset_obj, mode):
-    train_view = [0]
-    test_view = [0]
+    train_view = [4]
+    test_view = [4]
 
     print("Reading Training Transforms")
     train_cam_infos = readCameras(path, train_view, white_background, setting, dataset_obj, mode, split='train')
@@ -198,7 +198,7 @@ def readInfo(path, white_background, output_path, eval, setting, dataset_obj, mo
 def readCameras(path, output_view, white_background, setting, dataset_obj, mode, image_scaling=1., split='train', novel_view_vis=False):
     cam_infos = []
 
-    pose_start = 100
+    pose_start = 400
     if split == 'train':
         pose_interval = 3
         pose_num = 30
@@ -329,7 +329,7 @@ def readCameras(path, output_view, white_background, setting, dataset_obj, mode,
             # smpl_param['poses'] = smpl_param['poses'].astype(np.float32)
 
             # load smpl data
-            i = int(os.path.basename(image_path)[:-4])
+            i = int(os.path.basename(image_path)[:-4]) - 400
             pose = poses[i][None]
             Th = Ths[i][None]
             Rh = Rhs[i][None]

@@ -65,13 +65,13 @@ def get_keypoints():
 
 def get_cam():
     # PREPARE
-    save_dir = 'data/3DOH/camparams/motion18'
+    save_dir = 'data/3DOH/camparams/motion16'
     os.makedirs(save_dir, exist_ok=True)
     save_path = os.path.join(save_dir, 'camparams.txt')
     with open('data/3DOH/train.pkl', 'rb') as file:
         train_infos = pickle.load(file)
     print('successfully read train.pkl!')
-    train_info = train_infos[18]
+    train_info = train_infos[16]
 
     # WRITE
     with open(save_path, 'w') as file:
@@ -184,12 +184,12 @@ def get_smpl_params_vertices():
 
 def del_image():
     for idx in range(6):
-        img_dir = f'data/3DOH/images/motion18/Camera{idx:02d}'
+        img_dir = f'data/3DOH/images/motion16/Camera{idx:02d}'
         imgs = os.listdir(img_dir)
         for img in imgs:
             img_path = os.path.join(img_dir, img)
             img_idx = int(img[:-4])
-            if img_idx < 100 or img_idx > 199:
+            if img_idx < 400 or img_idx > 499:
                 os.remove(img_path)
 
 def get_annots():
@@ -198,7 +198,7 @@ def get_annots():
     with open(pkl_path, 'rb') as file:
         params = pickle.load(file)
 
-    params = params[18]
+    params = params[16]
 
     # 创建字典
     annots = {}
@@ -229,7 +229,7 @@ def get_annots():
         img = []
         sub_ims = {}
         for j in range(6):
-            path = os.path.join("images", "motion18", "Camera{:02d}".format(j), "{:05d}.jpg".format(i))
+            path = os.path.join("images", "motion16", "Camera{:02d}".format(j), "{:05d}.jpg".format(i))
             img.append(path)
         sub_ims['ims'] = img
         imgs.append(sub_ims)

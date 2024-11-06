@@ -188,8 +188,8 @@ def non_linear_solver(
 
         # 保存高斯checkpoints
         if opt_idx in [2, 3] and use_gs_loss:
-            os.makedirs('output/3DOH/motion18/cnkpnt', exist_ok=True)
-            torch.save((gaussians.capture(), opt_idx), "output/3DOH/motion0/chkpnt" + str(opt_idx) + ".pth")
+            os.makedirs('output/3DOH/motion16/cnkpnt', exist_ok=True)
+            torch.save((gaussians.capture(), opt_idx), "output/3DOH/motion16/chkpnt" + str(opt_idx) + ".pth")
 
         # 渲染最终高斯
         if opt_idx == 3 and use_gs_loss:

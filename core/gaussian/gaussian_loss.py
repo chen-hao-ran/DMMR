@@ -57,9 +57,9 @@ class GS3DLoss(nn.Module):
                 "render_alpha"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
 
             # 保存渲染图片
-            os.makedirs('output/3DOH/motion18/train_img', exist_ok=True)
+            os.makedirs('output/3DOH/motion16/train_img', exist_ok=True)
             check_image = (image.permute(1, 2, 0).cpu().detach().numpy() * 255).astype(np.uint8)
-            cv2.imwrite(f'output/3DOH/motion18/train_img/{iteration}.png', check_image)
+            cv2.imwrite(f'output/3DOH/motion16/train_img/{iteration}.png', check_image)
 
             gt_image = viewpoint_cam.original_image.cuda()
             bkgd_mask = viewpoint_cam.bkgd_mask.cuda()
