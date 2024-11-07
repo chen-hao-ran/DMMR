@@ -65,13 +65,12 @@ def get_keypoints():
 
 def get_cam():
     # PREPARE
-    save_dir = 'data/3DOH/camparams/motion16'
+    save_dir = 'data/OcMotion/camparams/0019'
     os.makedirs(save_dir, exist_ok=True)
     save_path = os.path.join(save_dir, 'camparams.txt')
-    with open('data/3DOH/train.pkl', 'rb') as file:
+    with open('data/OcMotion/test.pkl', 'rb') as file:
         train_infos = pickle.load(file)
-    print('successfully read train.pkl!')
-    train_info = train_infos[16]
+    train_info = train_infos[3]
 
     # WRITE
     with open(save_path, 'w') as file:
@@ -194,7 +193,7 @@ def del_image():
 
 def get_annots():
     # 读取plk文件，即smpl_params参数 39 * 6 * 1200
-    pkl_path = 'data/3DOH/train.pkl'
+    pkl_path = 'data/3DOH/test.pkl'
     with open(pkl_path, 'rb') as file:
         params = pickle.load(file)
 
@@ -241,9 +240,9 @@ def get_annots():
 if __name__ == '__main__':
     # read_data()
     # get_keypoints()
-    # get_cam()
+    get_cam()
     # keypoints_vis()
     # vertices_vis()
     # get_smpl_params_vertices()
     # del_image()
-    get_annots()
+    # get_annots()

@@ -113,7 +113,7 @@ def non_linear_solver(
     opt_start = time.time()
     # Initialize GS
     gaussians = GaussianModel(dataset_gs.sh_degree, dataset_gs.smpl_type, dataset_gs.actor_gender)
-    use_gs_loss = True
+    use_gs_loss = False
     # 封装gs optmize需要用到的参数
     gs_param = {}
     gs_param['opt'] = opt
