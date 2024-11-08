@@ -32,18 +32,18 @@ def project_to_img(joints, verts, faces, gt_joints, camera, image_path, img_fold
         render.renderer.delete()
         del render
 
-def img2video():
-    for idx in range(1):
+def img2video(seq):
+    for idx in range(6):
         # 图像文件夹路径
-        # image_folder = f'output/images/motion16/Camera{idx:02d}'  # 替换为你的图像文件夹路径
+        image_folder = 'output/images/' + seq + f'/Camera{idx:02d}'  # 替换为你的图像文件夹路径
         # image_folder = 'output/images/motion16/Camera04'  # 替换为你的图像文件夹路径
-        image_folder = 'output/render/gs'
-        # video_name = f'origin{idx:02d}.avi'  # 输出视频文件名
+        # image_folder = 'output/render/gs'
+        video_name = 'origin_' + seq + f'_Camera{idx:02d}.avi'  # 输出视频文件名
         # video_name = 'addgs04.avi'  # 输出视频文件名
-        video_name = 'gs.avi'  # 输出视频文件名
+        # video_name = 'gs.avi'  # 输出视频文件名
 
         # 获取图像文件名并排序
-        images = [img for img in os.listdir(image_folder) if img.endswith(".png")]
+        images = [img for img in os.listdir(image_folder) if img.endswith(".jpg")]
         images.sort()
 
         # 读取第一张图像以获取视频参数
@@ -66,8 +66,8 @@ def img2video():
         print(f'第{idx}个视频已生成：{video_name}')
 
 if __name__ == '__main__':
-    # for i in range(100):
-    #     path = f'output/3DOH/motion16/render_data/{i:03d}'
+    # for i in range(1200):
+    #     path = f'output/OcMotion/0013/render_data/{i:05d}'
     #     with open(os.path.join(path, 'joints.pkl'), 'rb') as file:
     #         joints = pickle.load(file)
     #     with open(os.path.join(path, 'meshes.pkl'), 'rb') as file:
@@ -80,8 +80,8 @@ if __name__ == '__main__':
     #         camera = pickle.load(file)
     #     with open(os.path.join(path, 'img_p.pkl'), 'rb') as file:
     #         img_p = pickle.load(file)
-    #     dataset_obj_img_folder = 'data/3DOH/images'
+    #     dataset_obj_img_folder = 'data/OcMotion/images'
     #     setting_img_folder = 'output/images'
     #     project_to_img(joints, meshes, faces, keyp_p, camera, img_p, dataset_obj_img_folder, viz=False, path=setting_img_folder)
 
-    img2video()
+    img2video('0013')

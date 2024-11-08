@@ -39,8 +39,7 @@ class HumanEval(nn.Module):
         self.dataset_scale = self.dataset_mapping(self.name)
         # self.J_regressor_H36 = np.load('data/J_regressor_h36m.npy').astype(np.float32)
         self.J_regressor_H36 = None
-        # self.J_regressor_LSP = np.load('data/J_regressor_lsp.npy').astype(np.float32)
-        self.J_regressor_LSP = None
+        self.J_regressor_LSP = np.load('data/J_regressor_lsp.npy').astype(np.float32)
         self.J_regressor_SMPL = self.smpl.J_regressor.clone().cpu().detach().numpy()
 
         self.eval_handler_mapper = dict(
@@ -857,7 +856,7 @@ class Eval_OcMotion(Eval_Dataset):
         super(Eval_Dataset, self).__init__()
         # self.dataset_dir = os.path.join(dataset_dir, 'Eval_Human36M10FPS')
         # self.annots = load_pkl(os.path.join(self.dataset_dir, 'annot.pkl'))
-        self.dataset_dir = os.path.join(dataset_dir, '3DOH')
+        self.dataset_dir = os.path.join(dataset_dir, 'OcMotion')
         self.annots = load_pkl(os.path.join(self.dataset_dir, 'test.pkl'))
         self.smpl = smpl
         self.evaltool = evaltool
@@ -868,13 +867,15 @@ class Eval_OcMotion(Eval_Dataset):
     def evaluate(self, results_dir):
         vertex_errors, errors, error_pas, abs_pcks, pcks, imnames, joints, joints_2ds, error_cam_p, error_cam_r, error_accel = [], [], [], [], [], [], [], [], [], [], []
         
-        for seq in self.annots:
-            _, seq_name, cam_name, img_name = seq[0]['img_path'].split('/')
-            seq_dir = os.path.join(results_dir, 'results', seq_name+'_'+cam_name)
+        for idx, seq in enumerate(self.annots):
+            if idx != 3:
+                continue
+            _, seq_name, cam_name, img_name = seq[0][0]['img_path'].split('/')
+            seq_dir = os.path.join(results_dir, 'results', seq_name)
             gt_meshes, gt_joints = [], []
             meshes = []
-            print('processing %s' %(seq_name+'_'+cam_name))
-            for frame in seq:
+            print('processing %s' %(seq_name))
+            for frame in seq[0]:
                 _, _, _, img_name = frame['img_path'].split('/')
                 index = img_name.split('.')[0]
                 
@@ -883,7 +884,8 @@ class Eval_OcMotion(Eval_Dataset):
                 gt_pose = torch.from_numpy(np.array(gt_param['pose'], dtype=np.float32)).reshape(-1, 72)
                 gt_betas = torch.from_numpy(np.array(gt_param['betas'], dtype=np.float32)).reshape(-1, 10)
                 gt_transl = torch.from_numpy(np.array(gt_param['trans'], dtype=np.float32)).reshape(-1, 3)
-                gt_scale = torch.from_numpy(np.array(gt_param['scale'], dtype=np.float32)).reshape(-1, 1)
+                # gt_scale = torch.from_numpy(np.array(gt_param['scale'], dtype=np.float32)).reshape(-1, 1)
+                gt_scale = torch.ones((1, 1))
 
                 gt_model_output = self.smpl(betas=gt_betas, body_pose=gt_pose[:,3:], global_orient=gt_pose[:,:3], transl=gt_transl, scale=gt_scale, return_verts=True, return_full_pose=False)
 
