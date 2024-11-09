@@ -113,7 +113,7 @@ def non_linear_solver(
     opt_start = time.time()
     # Initialize GS
     gaussians = GaussianModel(dataset_gs.sh_degree, dataset_gs.smpl_type, dataset_gs.actor_gender)
-    use_gs_loss = False
+    use_gs_loss = True
     # 封装gs optmize需要用到的参数
     gs_param = {}
     gs_param['opt'] = opt
@@ -188,8 +188,8 @@ def non_linear_solver(
 
         # 保存高斯checkpoints
         if opt_idx in [2, 3] and use_gs_loss:
-            os.makedirs('output/3DOH/motion16/cnkpnt', exist_ok=True)
-            torch.save((gaussians.capture(), opt_idx), "output/3DOH/motion16/chkpnt" + str(opt_idx) + ".pth")
+            os.makedirs('output/gs/cnkpnt/0013', exist_ok=True)
+            torch.save((gaussians.capture(), opt_idx), "output//chkpnt" + str(opt_idx) + ".pth")
 
         # 渲染最终高斯
         if opt_idx == 3 and use_gs_loss:

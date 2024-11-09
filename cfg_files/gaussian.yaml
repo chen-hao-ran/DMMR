@@ -1,13 +1,13 @@
 ModelParams:
   sh_degree: 3
-  source_path: "data/3DOH"
+  source_path: "data/OcMotion"
   model_path: ""
   images: "images"
   resolution: -1
   white_background: false
   data_device: "cuda"
   eval: false
-  exp_name: "3DOH/motion16"
+  exp_name: "OcMotion/0013"
   smpl_type: "smpl"
   actor_gender: "neutral"
 

@@ -13,6 +13,7 @@ from core.gaussian.scene.cameras import Camera
 import numpy as np
 from core.gaussian.utils.general_utils import PILtoTorch
 from core.gaussian.utils.graphics_utils import fov2focal
+import time
 
 WARNED = False
 
@@ -37,9 +38,10 @@ def loadCam(args, id, cam_info, resolution_scale):
 
         scale = float(global_down) * float(resolution_scale)
         resolution = (int(orig_w / scale), int(orig_h / scale))
-
+    st_time = time.time()
     resized_image_rgb = PILtoTorch(cam_info.image, resolution)
-
+    ed_time = time.time()
+    print(f'resize时间：{ed_time - st_time}')
     gt_image = resized_image_rgb[:3, ...]
     loaded_mask = None
 
@@ -69,10 +71,14 @@ def loadCam(args, id, cam_info, resolution_scale):
 
 def cameraList_from_camInfos(cam_infos, resolution_scale, args):
     camera_list = []
-
+    st_time_all = time.time()
     for id, c in enumerate(cam_infos):
+        st_time = time.time()
         camera_list.append(loadCam(args, id, c, resolution_scale))
-
+        ed_time = time.time()
+        print(f'加载第{id}个cam信息：{ed_time - st_time}')
+    ed_time_all = time.time()
+    print(f'加载所有的cam信息：{ed_time_all - st_time_all}')
     return camera_list
 
 def camera_to_JSON(id, camera : Camera):

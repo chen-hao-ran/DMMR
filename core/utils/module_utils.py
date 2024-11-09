@@ -455,7 +455,7 @@ def save_results(setting, data, result, dataset_obj,
         with open(result_fn, 'wb') as result_file:
             pickle.dump(frame_results, result_file, protocol=2)
 
-        path = f'output/OcMotion/{serial}/render_data/{i:05d}'
+        path = f'output/render_data/{serial}/{i:05d}'
         os.makedirs(path, exist_ok=True)
         img_p = [img_path[v][i] for v in range(len(data['img_path']))]
         keyp_p = [keypoints[v][i] for v in range(len(data['img_path']))]

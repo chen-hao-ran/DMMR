@@ -9,6 +9,7 @@ import json
 import imageio
 import cv2
 import random
+import time
 from pathlib import Path
 from plyfile import PlyData, PlyElement
 from core.gaussian.utils.sh_utils import SH2RGB
@@ -154,8 +155,8 @@ def get_mask(path, index, view_index, ims):
     return msk, msk_cihp
 
 def readInfo(path, white_background, output_path, eval, setting, dataset_obj, mode):
-    train_view = [4]
-    test_view = [4]
+    train_view = [0, 1, 2]
+    test_view = [0]
 
     print("Reading Training Transforms")
     train_cam_infos = readCameras(path, train_view, white_background, setting, dataset_obj, mode, split='train')
@@ -198,17 +199,19 @@ def readInfo(path, white_background, output_path, eval, setting, dataset_obj, mo
 def readCameras(path, output_view, white_background, setting, dataset_obj, mode, image_scaling=1., split='train', novel_view_vis=False):
     cam_infos = []
 
-    pose_start = 400
+    pose_start = 0
     if split == 'train':
         pose_interval = 3
-        pose_num = 30
+        pose_num = 100
     elif split == 'test':
         if mode == 0 or mode == 1:
-            pose_interval = 10
+            pose_interval = 1
             pose_num = 1
         else:
             pose_interval = 1
             pose_num = 100
+
+    st_time = time.time()
 
     ann_file = os.path.join(path, 'annots.npy')
     annots = np.load(ann_file, allow_pickle=True).item()
@@ -251,6 +254,10 @@ def readCameras(path, output_view, white_background, setting, dataset_obj, mode,
     big_pose_max_xyz += 0.05
     big_pose_world_bound = np.stack([big_pose_min_xyz, big_pose_max_xyz], axis=0)
 
+    ed_time = time.time()
+    print(f'读取annot，并fit Big pose：{ed_time - st_time}')
+
+    st_time_all = time.time()
     # load smpl params
     model = setting['model'][0]
     pose_embedding = setting['pose_embedding'][0]
@@ -269,7 +276,7 @@ def readCameras(path, output_view, white_background, setting, dataset_obj, mode,
     idx = 0
     for pose_index in range(pose_num):
         for view_index in range(len(output_view)):
-
+            st_time = time.time()
             # Load image, mask, K, D, R, T
             image_path = os.path.join(path, ims[pose_index][view_index].replace('\\', '/'))
             image_name = ims[pose_index][view_index].split('.')[0]
@@ -329,7 +336,7 @@ def readCameras(path, output_view, white_background, setting, dataset_obj, mode,
             # smpl_param['poses'] = smpl_param['poses'].astype(np.float32)
 
             # load smpl data
-            i = int(os.path.basename(image_path)[:-4]) - 400
+            i = int(os.path.basename(image_path)[:-4])
             pose = poses[i][None]
             Th = Ths[i][None]
             Rh = Rhs[i][None]
@@ -366,5 +373,14 @@ def readCameras(path, output_view, white_background, setting, dataset_obj, mode,
                                         big_pose_world_bound=big_pose_world_bound))
 
             idx += 1
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+            ed_time = time.time()
+            print(f'fit每一帧的pose：{ed_time - st_time}')
+
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+    ed_time_all = time.time()
+    print(f'fit所有帧的pose：{ed_time_all - st_time_all}')
 
     return cam_infos

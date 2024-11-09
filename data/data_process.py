@@ -193,11 +193,11 @@ def del_image():
 
 def get_annots():
     # 读取plk文件，即smpl_params参数 39 * 6 * 1200
-    pkl_path = 'data/3DOH/test.pkl'
+    pkl_path = 'data/OcMotion/test.pkl'
     with open(pkl_path, 'rb') as file:
         params = pickle.load(file)
 
-    params = params[16]
+    params = params[0]
 
     # 创建字典
     annots = {}
@@ -228,21 +228,21 @@ def get_annots():
         img = []
         sub_ims = {}
         for j in range(6):
-            path = os.path.join("images", "motion16", "Camera{:02d}".format(j), "{:05d}.jpg".format(i))
+            path = os.path.join("images", "0013", "Camera{:02d}".format(j), "{:05d}.jpg".format(i))
             img.append(path)
         sub_ims['ims'] = img
         imgs.append(sub_ims)
     annots['ims'] = imgs
-    np.save("data/3DOH/annots.npy", annots)
+    np.save("data/OcMotion/annots.npy", annots)
 
     print(annots)
 
 if __name__ == '__main__':
     # read_data()
     # get_keypoints()
-    get_cam()
+    # get_cam()
     # keypoints_vis()
     # vertices_vis()
     # get_smpl_params_vertices()
     # del_image()
-    # get_annots()
+    get_annots()
