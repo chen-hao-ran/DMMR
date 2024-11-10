@@ -197,7 +197,7 @@ def get_annots():
     with open(pkl_path, 'rb') as file:
         params = pickle.load(file)
 
-    params = params[0]
+    params = params[1]
 
     # 创建字典
     annots = {}
@@ -228,7 +228,7 @@ def get_annots():
         img = []
         sub_ims = {}
         for j in range(6):
-            path = os.path.join("images", "0013", "Camera{:02d}".format(j), "{:05d}.jpg".format(i))
+            path = os.path.join("images", "0015", "Camera{:02d}".format(j), "{:05d}.jpg".format(i))
             img.append(path)
         sub_ims['ims'] = img
         imgs.append(sub_ims)

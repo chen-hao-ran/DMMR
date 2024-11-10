@@ -7,7 +7,7 @@ ModelParams:
   white_background: false
   data_device: "cuda"
   eval: false
-  exp_name: "OcMotion/0013"
+  exp_name: "OcMotion/0015"
   smpl_type: "smpl"
   actor_gender: "neutral"
 

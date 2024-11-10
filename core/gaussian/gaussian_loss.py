@@ -22,9 +22,9 @@ class GS3DLoss(nn.Module):
     def __init__(self,):
         super(GS3DLoss, self).__init__()
 
-    def forward(self, opt, pipe, dataset_gs, gaussians, setting, dataset_obj, iterations, mode):
+    def forward(self, scene, opt, pipe, dataset_gs, gaussians, setting, dataset_obj, iterations, mode):
         # initialize
-        scene = Scene(dataset_gs, gaussians, setting, dataset_obj, mode)
+        scene.changeSMPL(dataset_gs, setting, dataset_obj, mode)
         gaussians.training_setup(opt)
         bg_color = [1, 1, 1] if dataset_gs.white_background else [0, 0, 0]
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")

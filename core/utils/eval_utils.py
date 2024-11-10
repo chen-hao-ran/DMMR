@@ -868,7 +868,7 @@ class Eval_OcMotion(Eval_Dataset):
         vertex_errors, errors, error_pas, abs_pcks, pcks, imnames, joints, joints_2ds, error_cam_p, error_cam_r, error_accel = [], [], [], [], [], [], [], [], [], [], []
         
         for idx, seq in enumerate(self.annots):
-            if idx != 0:
+            if idx != 1:
                 continue
             _, seq_name, cam_name, img_name = seq[0][0]['img_path'].split('/')
             seq_dir = os.path.join(results_dir, 'results', seq_name)

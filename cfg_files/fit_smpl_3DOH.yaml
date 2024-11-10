@@ -75,7 +75,7 @@ ftol: 1e-9
 gtol: 1e-9
 lr: 1.0
 # Max number of optimization iterations
-maxiters: 1
+maxiters: 30
 
 # fixed parameter
 fix_scale: true

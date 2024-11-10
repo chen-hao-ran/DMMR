@@ -35,25 +35,25 @@ class Scene:
         # get scene_info
         scene_info = readInfo(args.source_path, args.white_background, args.exp_name, args.eval, setting, dataset_obj, mode)
 
-        # write cams
-        if not self.loaded_iter:
-            with open(scene_info.ply_path, 'rb') as src_file, open(os.path.join(self.model_path, "input.ply") , 'wb') as dest_file:
-                dest_file.write(src_file.read())
-            json_cams = []
-            camlist = []
-            if scene_info.test_cameras:
-                camlist.extend(scene_info.test_cameras)
-            if scene_info.train_cameras:
-                camlist.extend(scene_info.train_cameras)
-            for id, cam in enumerate(camlist):
-                json_cams.append(camera_to_JSON(id, cam))
-            with open(os.path.join(self.model_path, "cameras.json"), 'w') as file:
-                json.dump(json_cams, file)
+        # # write cams
+        # if not self.loaded_iter:
+        #     with open(scene_info.ply_path, 'rb') as src_file, open(os.path.join(self.model_path, "input.ply") , 'wb') as dest_file:
+        #         dest_file.write(src_file.read())
+        #     json_cams = []
+        #     camlist = []
+        #     if scene_info.test_cameras:
+        #         camlist.extend(scene_info.test_cameras)
+        #     if scene_info.train_cameras:
+        #         camlist.extend(scene_info.train_cameras)
+        #     for id, cam in enumerate(camlist):
+        #         json_cams.append(camera_to_JSON(id, cam))
+        #     with open(os.path.join(self.model_path, "cameras.json"), 'w') as file:
+        #         json.dump(json_cams, file)
 
-        # cam shuffle
-        if shuffle:
-            random.shuffle(scene_info.train_cameras)  # Multi-res consistent random shuffling
-            # random.shuffle(scene_info.test_cameras)  # Multi-res consistent random shuffling
+        # # cam shuffle
+        # if shuffle:
+        #     random.shuffle(scene_info.train_cameras)  # Multi-res consistent random shuffling
+        #     random.shuffle(scene_info.test_cameras)  # Multi-res consistent random shuffling
 
         # cameras_extent
         self.cameras_extent = scene_info.nerf_normalization["radius"]
@@ -83,3 +83,15 @@ class Scene:
     def getTestCameras(self, scale=1.0):
         return self.test_cameras[scale]
 
+    def changeSMPL(self, args : ModelParams, setting, dataset_obj, mode, shuffle=True, resolution_scales=[1.0]):
+        scene_info = readInfo(args.source_path, args.white_background, args.exp_name, args.eval, setting, dataset_obj, mode)
+
+        # # cam shuffle
+        # if shuffle:
+        #     random.shuffle(scene_info.train_cameras)  # Multi-res consistent random shuffling
+        #     random.shuffle(scene_info.test_cameras)  # Multi-res consistent random shuffling
+
+        for resolution_scales in resolution_scales:
+            print("Change Traning Cameras")
+            for idx, cam in enumerate(self.train_cameras[resolution_scales]):
+                cam.changeSMPL(scene_info.train_cameras[idx], resolution_scales)

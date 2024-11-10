@@ -13,6 +13,7 @@ import torch
 from torch import nn
 import numpy as np
 from core.gaussian.utils.graphics_utils import getWorld2View2, getProjectionMatrix, getProjectionMatrix_refine
+from core.gaussian.utils.general_utils import PILtoTorch
 
 class Camera(nn.Module):
     def __init__(self, colmap_id, pose_id, R, T, K, FoVx, FoVy, image, gt_alpha_mask,
@@ -69,6 +70,14 @@ class Camera(nn.Module):
         self.big_pose_smpl_param = smpl_to_cuda(big_pose_smpl_param, self.data_device)
         self.big_pose_world_vertex = torch.tensor(big_pose_world_vertex).to(self.data_device)
         self.big_pose_world_bound = torch.tensor(big_pose_world_bound).to(self.data_device)
+
+    def changeSMPL(self, cam_info, resolution_scale):
+        resolution = round(cam_info.width / resolution_scale), round(cam_info.height / resolution_scale)
+        if cam_info.bound_mask is not None:
+            self.bound_mask = PILtoTorch(cam_info.bound_mask, resolution)
+        self.smpl_param = smpl_to_cuda(cam_info.smpl_param, self.data_device)
+        self.world_vertex = torch.tensor(cam_info.world_vertex).to(self.data_device)
+        self.world_bound = torch.tensor(cam_info.world_bound).to(self.data_device)
 
 class MiniCam:
     def __init__(self, width, height, fovy, fovx, znear, zfar, world_view_transform, full_proj_transform):

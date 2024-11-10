@@ -204,14 +204,12 @@ def readCameras(path, output_view, white_background, setting, dataset_obj, mode,
         pose_interval = 3
         pose_num = 100
     elif split == 'test':
-        if mode == 0 or mode == 1:
+        if mode == 1:
             pose_interval = 1
             pose_num = 1
         else:
             pose_interval = 1
             pose_num = 100
-
-    st_time = time.time()
 
     ann_file = os.path.join(path, 'annots.npy')
     annots = np.load(ann_file, allow_pickle=True).item()
@@ -230,157 +228,216 @@ def readCameras(path, output_view, white_background, setting, dataset_obj, mode,
         for i in range(ims.shape[0]):
             ims[i] = [x.split('/')[0] + '/' + x.split('/')[1].split('_')[4] + '.jpg' for x in ims[i]]
 
-    smpl_model = SMPL(sex='neutral', model_dir='')
+    if mode == 0:
+        smpl_model = SMPL(sex='neutral', model_dir='')
 
-    # SMPL in canonical space
-    big_pose_smpl_param = {}
-    big_pose_smpl_param['R'] = np.eye(3).astype(np.float32)
-    big_pose_smpl_param['Th'] = np.zeros((1, 3)).astype(np.float32)
-    big_pose_smpl_param['shapes'] = np.zeros((1, 10)).astype(np.float32)
-    big_pose_smpl_param['poses'] = np.zeros((1, 72)).astype(np.float32)
-    big_pose_smpl_param['poses'][0, 5] = 45 / 180 * np.array(np.pi)
-    big_pose_smpl_param['poses'][0, 8] = -45 / 180 * np.array(np.pi)
-    big_pose_smpl_param['poses'][0, 23] = -30 / 180 * np.array(np.pi)
-    big_pose_smpl_param['poses'][0, 26] = 30 / 180 * np.array(np.pi)
+        # SMPL in canonical space
+        big_pose_smpl_param = {}
+        big_pose_smpl_param['R'] = np.eye(3).astype(np.float32)
+        big_pose_smpl_param['Th'] = np.zeros((1, 3)).astype(np.float32)
+        big_pose_smpl_param['shapes'] = np.zeros((1, 10)).astype(np.float32)
+        big_pose_smpl_param['poses'] = np.zeros((1, 72)).astype(np.float32)
+        big_pose_smpl_param['poses'][0, 5] = 45 / 180 * np.array(np.pi)
+        big_pose_smpl_param['poses'][0, 8] = -45 / 180 * np.array(np.pi)
+        big_pose_smpl_param['poses'][0, 23] = -30 / 180 * np.array(np.pi)
+        big_pose_smpl_param['poses'][0, 26] = 30 / 180 * np.array(np.pi)
 
-    big_pose_xyz, _ = smpl_model(big_pose_smpl_param['poses'], big_pose_smpl_param['shapes'].reshape(-1))
-    big_pose_xyz = (np.matmul(big_pose_xyz, big_pose_smpl_param['R'].transpose()) + big_pose_smpl_param['Th']).astype(
-        np.float32)
+        big_pose_xyz, _ = smpl_model(big_pose_smpl_param['poses'], big_pose_smpl_param['shapes'].reshape(-1))
+        big_pose_xyz = (np.matmul(big_pose_xyz, big_pose_smpl_param['R'].transpose()) + big_pose_smpl_param['Th']).astype(
+            np.float32)
 
-    # obtain the original bounds for point sampling
-    big_pose_min_xyz = np.min(big_pose_xyz, axis=0)
-    big_pose_max_xyz = np.max(big_pose_xyz, axis=0)
-    big_pose_min_xyz -= 0.05
-    big_pose_max_xyz += 0.05
-    big_pose_world_bound = np.stack([big_pose_min_xyz, big_pose_max_xyz], axis=0)
+        # obtain the original bounds for point sampling
+        big_pose_min_xyz = np.min(big_pose_xyz, axis=0)
+        big_pose_max_xyz = np.max(big_pose_xyz, axis=0)
+        big_pose_min_xyz -= 0.05
+        big_pose_max_xyz += 0.05
+        big_pose_world_bound = np.stack([big_pose_min_xyz, big_pose_max_xyz], axis=0)
 
-    ed_time = time.time()
-    print(f'读取annot，并fit Big pose：{ed_time - st_time}')
+        # load smpl params
+        model = setting['model'][0]
+        pose_embedding = setting['pose_embedding'][0]
+        vposer = setting['vposer']
+        frames_seq = dataset_obj.frames
+        body_pose = vposer.decode(pose_embedding, t=frames_seq).view(frames_seq, -1)
+        body_pose[:, -6:] = 0.
+        body_pose = body_pose.detach().cpu().numpy()
+        orient = np.array(model.global_orient.detach().cpu().numpy())
+        poses = np.hstack((orient, body_pose)).reshape(-1, 72)
+        shapes = model.betas.detach().cpu().numpy().astype(np.float32).reshape(-1, 10)
+        Ths = model.transl.detach().cpu().numpy().astype(np.float32).reshape(-1, 3)
+        Rhs = model.global_orient.detach().cpu().numpy().astype(np.float32).reshape(-1, 3)
+        smpl_chomp = SMPLModel(device=torch.device('cpu'), model_path='assets/SMPL_NEUTRAL.pkl')
 
-    st_time_all = time.time()
-    # load smpl params
-    model = setting['model'][0]
-    pose_embedding = setting['pose_embedding'][0]
-    vposer = setting['vposer']
-    frames_seq = dataset_obj.frames
-    body_pose = vposer.decode(pose_embedding, t=frames_seq).view(frames_seq, -1)
-    body_pose[:, -6:] = 0.
-    body_pose = body_pose.detach().cpu().numpy()
-    orient = np.array(model.global_orient.detach().cpu().numpy())
-    poses = np.hstack((orient, body_pose)).reshape(-1, 72)
-    shapes = model.betas.detach().cpu().numpy().astype(np.float32).reshape(-1, 10)
-    Ths = model.transl.detach().cpu().numpy().astype(np.float32).reshape(-1, 3)
-    Rhs = model.global_orient.detach().cpu().numpy().astype(np.float32).reshape(-1, 3)
-    smpl_chomp = SMPLModel(device=torch.device('cpu'), model_path='assets/SMPL_NEUTRAL.pkl')
+        idx = 0
+        for pose_index in range(pose_num):
+            for view_index in range(len(output_view)):
+                # Load image, mask, K, D, R, T
+                image_path = os.path.join(path, ims[pose_index][view_index].replace('\\', '/'))
+                image_name = ims[pose_index][view_index].split('.')[0]
+                image = np.array(imageio.imread(image_path).astype(np.float32) / 255.)
 
-    idx = 0
-    for pose_index in range(pose_num):
-        for view_index in range(len(output_view)):
-            st_time = time.time()
-            # Load image, mask, K, D, R, T
-            image_path = os.path.join(path, ims[pose_index][view_index].replace('\\', '/'))
-            image_name = ims[pose_index][view_index].split('.')[0]
-            image = np.array(imageio.imread(image_path).astype(np.float32) / 255.)
+                msk_path = image_path.replace('images', 'mask').replace('jpg', 'png')
+                msk = imageio.imread(msk_path)
+                msk = (msk != 0).astype(np.uint8)
 
-            msk_path = image_path.replace('images', 'mask').replace('jpg', 'png')
-            msk = imageio.imread(msk_path)
-            msk = (msk != 0).astype(np.uint8)
+                if not novel_view_vis:
+                    cam_ind = cam_inds[pose_index][view_index]
+                    K = np.array(cams['K'][cam_ind])
+                    D = np.array(cams['D'][cam_ind])
+                    R = np.array(cams['R'][cam_ind])
+                    T = np.array(cams['T'][cam_ind])
 
-            if not novel_view_vis:
-                cam_ind = cam_inds[pose_index][view_index]
-                K = np.array(cams['K'][cam_ind])
-                D = np.array(cams['D'][cam_ind])
-                R = np.array(cams['R'][cam_ind])
-                T = np.array(cams['T'][cam_ind])
+                    image = cv2.undistort(image, K, D)
+                    msk = cv2.undistort(msk, K, D)
 
-                image = cv2.undistort(image, K, D)
-                msk = cv2.undistort(msk, K, D)
+                image[msk == 0] = 1 if white_background else 0
 
-            image[msk == 0] = 1 if white_background else 0
+                # change from OpenGL/Blender camera axes (Y up, Z back) to COLMAP (Y down, Z forward)
+                w2c = np.eye(4)
+                w2c[:3, :3] = R
+                w2c[:3, 3:4] = T
 
-            # change from OpenGL/Blender camera axes (Y up, Z back) to COLMAP (Y down, Z forward)
-            w2c = np.eye(4)
-            w2c[:3, :3] = R
-            w2c[:3, 3:4] = T
+                # get the world-to-camera transform and set R, T
+                R = np.transpose(w2c[:3, :3])  # R is stored transposed due to 'glm' in CUDA code
+                T = w2c[:3, 3]
 
-            # get the world-to-camera transform and set R, T
-            R = np.transpose(w2c[:3, :3])  # R is stored transposed due to 'glm' in CUDA code
-            T = w2c[:3, 3]
+                # Reduce the image resolution by ratio, then remove the back ground
+                ratio = image_scaling
+                if ratio != 1.:
+                    H, W = int(image.shape[0] * ratio), int(image.shape[1] * ratio)
+                    image = cv2.resize(image, (W, H), interpolation=cv2.INTER_AREA)
+                    msk = cv2.resize(msk, (W, H), interpolation=cv2.INTER_NEAREST)
+                    K[:2] = K[:2] * ratio
 
-            # Reduce the image resolution by ratio, then remove the back ground
-            ratio = image_scaling
-            if ratio != 1.:
-                H, W = int(image.shape[0] * ratio), int(image.shape[1] * ratio)
-                image = cv2.resize(image, (W, H), interpolation=cv2.INTER_AREA)
-                msk = cv2.resize(msk, (W, H), interpolation=cv2.INTER_NEAREST)
-                K[:2] = K[:2] * ratio
+                image = Image.fromarray(np.array(image * 255.0, dtype=np.byte), "RGB")
 
-            image = Image.fromarray(np.array(image * 255.0, dtype=np.byte), "RGB")
+                focalX = K[0, 0]
+                focalY = K[1, 1]
+                FovX = focal2fov(focalX, image.size[0])
+                FovY = focal2fov(focalY, image.size[1])
 
-            focalX = K[0, 0]
-            focalY = K[1, 1]
-            FovX = focal2fov(focalX, image.size[0])
-            FovY = focal2fov(focalY, image.size[1])
+                # # load smpl data
+                # i = int(os.path.basename(image_path)[:-4])
+                # vertices_path = os.path.join(path, 'smpl_vertices', '{}.npy'.format(i))
+                # xyz = np.load(vertices_path).astype(np.float32)
+                #
+                # smpl_param_path = os.path.join(path, "smpl_params", '{}.npy'.format(i))
+                # smpl_param = np.load(smpl_param_path, allow_pickle=True).item()
+                # Rh = smpl_param['Rh']
+                # smpl_param['R'] = cv2.Rodrigues(Rh)[0].astype(np.float32)
+                # smpl_param['Th'] = smpl_param['Th'].astype(np.float32)
+                # smpl_param['shapes'] = smpl_param['shapes'].astype(np.float32)
+                # smpl_param['poses'] = smpl_param['poses'].astype(np.float32)
 
-            # # load smpl data
-            # i = int(os.path.basename(image_path)[:-4])
-            # vertices_path = os.path.join(path, 'smpl_vertices', '{}.npy'.format(i))
-            # xyz = np.load(vertices_path).astype(np.float32)
-            #
-            # smpl_param_path = os.path.join(path, "smpl_params", '{}.npy'.format(i))
-            # smpl_param = np.load(smpl_param_path, allow_pickle=True).item()
-            # Rh = smpl_param['Rh']
-            # smpl_param['R'] = cv2.Rodrigues(Rh)[0].astype(np.float32)
-            # smpl_param['Th'] = smpl_param['Th'].astype(np.float32)
-            # smpl_param['shapes'] = smpl_param['shapes'].astype(np.float32)
-            # smpl_param['poses'] = smpl_param['poses'].astype(np.float32)
+                # load smpl data
+                i = int(os.path.basename(image_path)[:-4])
+                pose = poses[i][None]
+                Th = Ths[i][None]
+                Rh = Rhs[i][None]
+                smpl_param = {
+                    'R': cv2.Rodrigues(Rh)[0],
+                    'Th': Th,
+                    'shapes': shapes,
+                    'poses': pose
+                }
+                s = torch.from_numpy(shapes)
+                p = torch.from_numpy(pose)
+                t = torch.from_numpy(Th)
+                xyz, _ = smpl_chomp(s, p, t)
+                xyz = xyz.detach().cpu().numpy().reshape(-1, 3)
 
-            # load smpl data
-            i = int(os.path.basename(image_path)[:-4])
-            pose = poses[i][None]
-            Th = Ths[i][None]
-            Rh = Rhs[i][None]
-            smpl_param = {
-                'R': cv2.Rodrigues(Rh)[0],
-                'Th': Th,
-                'shapes': shapes,
-                'poses': pose
-            }
-            s = torch.from_numpy(shapes)
-            p = torch.from_numpy(pose)
-            t = torch.from_numpy(Th)
-            xyz, _ = smpl_chomp(s, p, t)
-            xyz = xyz.detach().cpu().numpy().reshape(-1, 3)
+                # obtain the original bounds for point sampling
+                min_xyz = np.min(xyz, axis=0)
+                max_xyz = np.max(xyz, axis=0)
+                min_xyz -= 0.05
+                max_xyz += 0.05
+                world_bound = np.stack([min_xyz, max_xyz], axis=0)
 
-            # obtain the original bounds for point sampling
-            min_xyz = np.min(xyz, axis=0)
-            max_xyz = np.max(xyz, axis=0)
-            min_xyz -= 0.05
-            max_xyz += 0.05
-            world_bound = np.stack([min_xyz, max_xyz], axis=0)
+                # get bounding mask and bcakground mask
+                bound_mask = get_bound_2d_mask(world_bound, K, w2c[:3], image.size[1], image.size[0])
+                bound_mask = Image.fromarray(np.array(bound_mask * 255.0, dtype=np.byte))
 
-            # get bounding mask and bcakground mask
-            bound_mask = get_bound_2d_mask(world_bound, K, w2c[:3], image.size[1], image.size[0])
-            bound_mask = Image.fromarray(np.array(bound_mask * 255.0, dtype=np.byte))
+                bkgd_mask = Image.fromarray(np.array(msk * 255.0, dtype=np.byte))
 
-            bkgd_mask = Image.fromarray(np.array(msk * 255.0, dtype=np.byte))
+                cam_infos.append(CameraInfo(uid=idx, pose_id=pose_index, R=R, T=T, K=K, FovY=FovY, FovX=FovX, image=image,
+                                            image_path=image_path, image_name=image_name, bkgd_mask=bkgd_mask,
+                                            bound_mask=bound_mask, width=image.size[0], height=image.size[1],
+                                            smpl_param=smpl_param, world_vertex=xyz, world_bound=world_bound,
+                                            big_pose_smpl_param=big_pose_smpl_param, big_pose_world_vertex=big_pose_xyz,
+                                            big_pose_world_bound=big_pose_world_bound))
 
-            cam_infos.append(CameraInfo(uid=idx, pose_id=pose_index, R=R, T=T, K=K, FovY=FovY, FovX=FovX, image=image,
-                                        image_path=image_path, image_name=image_name, bkgd_mask=bkgd_mask,
-                                        bound_mask=bound_mask, width=image.size[0], height=image.size[1],
-                                        smpl_param=smpl_param, world_vertex=xyz, world_bound=world_bound,
-                                        big_pose_smpl_param=big_pose_smpl_param, big_pose_world_vertex=big_pose_xyz,
-                                        big_pose_world_bound=big_pose_world_bound))
+                idx += 1
+    else:
+        # load smpl params
+        model = setting['model'][0]
+        pose_embedding = setting['pose_embedding'][0]
+        vposer = setting['vposer']
+        frames_seq = dataset_obj.frames
+        body_pose = vposer.decode(pose_embedding, t=frames_seq).view(frames_seq, -1)
+        body_pose[:, -6:] = 0.
+        body_pose = body_pose.detach().cpu().numpy()
+        orient = np.array(model.global_orient.detach().cpu().numpy())
+        poses = np.hstack((orient, body_pose)).reshape(-1, 72)
+        shapes = model.betas.detach().cpu().numpy().astype(np.float32).reshape(-1, 10)
+        Ths = model.transl.detach().cpu().numpy().astype(np.float32).reshape(-1, 3)
+        Rhs = model.global_orient.detach().cpu().numpy().astype(np.float32).reshape(-1, 3)
+        smpl_chomp = SMPLModel(device=torch.device('cpu'), model_path='assets/SMPL_NEUTRAL.pkl')
 
-            idx += 1
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
-            ed_time = time.time()
-            print(f'fit每一帧的pose：{ed_time - st_time}')
+        idx = 0
+        for pose_index in range(pose_num):
+            for view_index in range(len(output_view)):
+                image_path = os.path.join(path, ims[pose_index][view_index].replace('\\', '/'))
+                if not novel_view_vis:
+                    cam_ind = cam_inds[pose_index][view_index]
+                    K = np.array(cams['K'][cam_ind])
+                    D = np.array(cams['D'][cam_ind])
+                    R = np.array(cams['R'][cam_ind])
+                    T = np.array(cams['T'][cam_ind])
 
-    if torch.cuda.is_available():
-        torch.cuda.synchronize()
-    ed_time_all = time.time()
-    print(f'fit所有帧的pose：{ed_time_all - st_time_all}')
+                    # change from OpenGL/Blender camera axes (Y up, Z back) to COLMAP (Y down, Z forward)
+                    w2c = np.eye(4)
+                    w2c[:3, :3] = R
+                    w2c[:3, 3:4] = T
+
+                    R = np.transpose(w2c[:3, :3])  # R is stored transposed due to 'glm' in CUDA code
+                    T = w2c[:3, 3]
+
+                    # load smpl data
+                    i = int(os.path.basename(image_path)[:-4])
+                    pose = poses[i][None]
+                    Th = Ths[i][None]
+                    Rh = Rhs[i][None]
+                    smpl_param = {
+                        'R': cv2.Rodrigues(Rh)[0],
+                        'Th': Th,
+                        'shapes': shapes,
+                        'poses': pose
+                    }
+                    s = torch.from_numpy(shapes)
+                    p = torch.from_numpy(pose)
+                    t = torch.from_numpy(Th)
+                    xyz, _ = smpl_chomp(s, p, t)
+                    xyz = xyz.detach().cpu().numpy().reshape(-1, 3)
+
+                    # obtain the original bounds for point sampling
+                    min_xyz = np.min(xyz, axis=0)
+                    max_xyz = np.max(xyz, axis=0)
+                    min_xyz -= 0.05
+                    max_xyz += 0.05
+                    world_bound = np.stack([min_xyz, max_xyz], axis=0)
+
+                    # get bounding mask and bcakground mask
+                    h = 1536
+                    w = 2048
+                    bound_mask = get_bound_2d_mask(world_bound, K, w2c[:3], h, w)
+                    bound_mask = Image.fromarray(np.array(bound_mask * 255.0, dtype=np.byte))
+
+                    cam_infos.append(
+                        CameraInfo(uid=idx, pose_id=pose_index, R=R, T=T, K=K, FovY=np.array([0]), FovX=np.array([0]), image=np.array([0]),
+                                   image_path=image_path, image_name='', bkgd_mask=np.array([0]),
+                                   bound_mask=bound_mask, width=w, height=h,
+                                   smpl_param=smpl_param, world_vertex=xyz, world_bound=world_bound,
+                                   big_pose_smpl_param={}, big_pose_world_vertex=np.array([0]),
+                                   big_pose_world_bound=np.array([0])))
 
     return cam_infos

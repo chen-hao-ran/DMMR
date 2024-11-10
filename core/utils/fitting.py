@@ -145,6 +145,7 @@ class FittingMonitor():
                                use_motionprior=False,
                                pose_embeddings=None,
                                gs_param=None,
+                               scene=None,
                                create_graph=False,
                                use_3d=False,
                                **kwargs):
@@ -200,7 +201,7 @@ class FittingMonitor():
                 gaussians = gs_param['gaussains']
                 setting = gs_param['setting']
                 dataset_obj = gs_param['dataset_obj']
-                add_gs_loss = loss_gs(opt, pipe, dataset_gs, gaussians, setting, dataset_obj, 1, 1)
+                add_gs_loss = loss_gs(scene, opt, pipe, dataset_gs, gaussians, setting, dataset_obj, 1, 1)
                 total_loss += 1e3 * add_gs_loss.item()
 
             if backward:
