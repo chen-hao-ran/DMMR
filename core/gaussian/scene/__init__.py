@@ -91,7 +91,15 @@ class Scene:
         #     random.shuffle(scene_info.train_cameras)  # Multi-res consistent random shuffling
         #     random.shuffle(scene_info.test_cameras)  # Multi-res consistent random shuffling
 
-        for resolution_scales in resolution_scales:
-            print("Change Traning Cameras")
-            for idx, cam in enumerate(self.train_cameras[resolution_scales]):
-                cam.changeSMPL(scene_info.train_cameras[idx], resolution_scales)
+        for resolution_scale in resolution_scales:
+            print("Change Train Cameras")
+            for idx, cam in enumerate(self.train_cameras[resolution_scale]):
+                cam.changeSMPL(scene_info.train_cameras[idx], resolution_scale)
+
+        if mode == 2:
+            for resolution_scale in resolution_scales:
+                print("Change Test Cameras")
+                for idx in range(len(scene_info)):
+                    self.test_cameras[resolution_scale][idx].changeSMPL(scene_info.test_cameras[idx], resolution_scale)
+                # for idx, cam in enumerate(self.test_cameras[resolution_scale]):
+                #     cam.changeSMPL(scene_info.test_cameras[idx], resolution_scale)

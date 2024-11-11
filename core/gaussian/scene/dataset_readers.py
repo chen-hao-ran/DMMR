@@ -207,7 +207,7 @@ def readCameras(path, output_view, white_background, setting, dataset_obj, mode,
         if mode == 1:
             pose_interval = 1
             pose_num = 1
-        else:
+        elif mode == 0 or mode == 2:
             pose_interval = 1
             pose_num = 100
 
@@ -228,7 +228,7 @@ def readCameras(path, output_view, white_background, setting, dataset_obj, mode,
         for i in range(ims.shape[0]):
             ims[i] = [x.split('/')[0] + '/' + x.split('/')[1].split('_')[4] + '.jpg' for x in ims[i]]
 
-    if mode == 0:
+    if mode == 0 or mode == 2:
         smpl_model = SMPL(sex='neutral', model_dir='')
 
         # SMPL in canonical space
@@ -439,5 +439,6 @@ def readCameras(path, output_view, white_background, setting, dataset_obj, mode,
                                    smpl_param=smpl_param, world_vertex=xyz, world_bound=world_bound,
                                    big_pose_smpl_param={}, big_pose_world_vertex=np.array([0]),
                                    big_pose_world_bound=np.array([0])))
+                    idx += 1
 
     return cam_infos

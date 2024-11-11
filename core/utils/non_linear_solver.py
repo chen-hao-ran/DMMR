@@ -131,6 +131,17 @@ def non_linear_solver(
             loss_gs = GS3DLoss()
             _ = loss_gs(scene, opt, pipe, dataset_gs, gaussians, setting, dataset_obj, opt.iterations, 1)
             gs_param['loss_gs'] = loss_gs
+            # render
+            scene.changeSMPL(dataset_gs, setting, dataset_obj, 2)
+            bg_color = [1, 1, 1] if dataset_gs.white_background else [0, 0, 0]
+            background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
+            viewpoint_stack = scene.getTestCameras().copy()
+            os.makedirs('output/gs/render_test/0013', exist_ok=True)
+            for idx, viewpoint_cam in enumerate(viewpoint_stack):
+                render_pkg = render(viewpoint_cam, gaussians, pipe, background)
+                image = render_pkg["render"]
+                image = torch.clamp(image, 0.0, 1.0)
+                torchvision.utils.save_image(image, os.path.join('output/gs/render_test/0013', '{0:05d}'.format(idx) + ".png"))
 
         # Load all parameters for optimization
         body_params = []
@@ -190,20 +201,20 @@ def non_linear_solver(
 
         # 保存高斯checkpoints
         if opt_idx in [2, 3] and use_gs_loss:
-            os.makedirs('output/gs/chkpnt/0015', exist_ok=True)
-            torch.save((gaussians.capture(), opt_idx), "output/gs/chkpnt/0015" + str(opt_idx) + ".pth")
+            os.makedirs('output/gs/chkpnt/0013', exist_ok=True)
+            torch.save((gaussians.capture(), opt_idx), "output/gs/chkpnt/0013/" + str(opt_idx) + ".pth")
 
         # 渲染最终高斯
         if opt_idx == 3 and use_gs_loss:
             bg_color = [1, 1, 1] if dataset_gs.white_background else [0, 0, 0]
             background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
             viewpoint_stack = scene.getTestCameras().copy()
-            os.makedirs('output/render/gs', exist_ok=True)
+            os.makedirs('output/gs/render_test/0013', exist_ok=True)
             for idx, viewpoint_cam in enumerate(viewpoint_stack):
                 render_pkg = render(viewpoint_cam, gaussians, pipe, background)
                 image = render_pkg["render"]
                 image = torch.clamp(image, 0.0, 1.0)
-                torchvision.utils.save_image(image, os.path.join('output/render/gs', '{0:05d}'.format(idx) + ".png"))
+                torchvision.utils.save_image(image, os.path.join('output/gs/render_test/0013', '{0:05d}'.format(idx) + ".png"))
 
 
     if interactive:
